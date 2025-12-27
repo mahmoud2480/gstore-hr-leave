@@ -408,12 +408,19 @@
         </div>
       </div>
 
-      <!-- لوحة الموظف -->
-      <div id="employeePanel" class="card">
-        <h2 class="card-title">
-          لوحة الموظف
-          <span class="badge" id="employeeNameBadge"></span>
-        </h2>
+<h2 class="card-title">
+  لوحة الموظف
+  <span class="badge" id="employeeNameBadge"></span>
+  <button
+    type="button"
+    class="btn btn-secondary btn-sm"
+    style="margin-right:auto;"
+    onclick="loadEmployeeDashboard()"
+  >
+    🔄 تحديث البيانات
+  </button>
+</h2>
+
 
         <div id="employeeAlert" class="alert hidden"></div>
 
@@ -578,7 +585,8 @@
   </div>
 <script>
   // رابط الـ Web App من Google Apps Script
-const API_URL = "https://script.google.com/macros/s/AKfycbxcyUnjPVlfDTOeb6Jvsl3Gmy6n_gu9ut0M0GIVBWhSpM96744f3p7LuhfmXpq1YjQs/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbym03NiZ-BiAZvbUUExzyGsA1VJSLRhp7KpyBRPyo1HG0g6oR8q6_hRbGNZndjYr0KG/exec";
+
 
   let currentUser = null;
 
