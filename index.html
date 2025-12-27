@@ -432,15 +432,21 @@
           </div>
           <div class="input-group">
             <label>نوع الإجازة</label>
-            <select id="leaveType">
-              <option value="Annual">سنوية</option>
-              <option value="Sick">مرضية</option>
-              <option value="Marriage">زواج</option>
-              <option value="Bereavement1">وفاة (درجة أولى)</option>
-              <option value="Bereavement2">وفاة (درجة ثانية)</option>
-              <option value="Exceptional">استثنائية</option>
-              <option value="Holiday">إجازة أعياد / رسمية</option>
-            </select>
+<select id="leaveType">
+  <option value="Annual">سنوية</option>
+  <option value="Sick">مرضية</option>
+  <option value="Marriage">زواج</option>
+  <option value="Bereavement1">وفاة (درجة أولى)</option>
+  <option value="Bereavement2">وفاة (درجة ثانية)</option>
+  <option value="Exceptional">استثنائية</option>
+  <option value="Hourly">إجازة ساعية (من الاستثنائية)</option>
+  <option value="Holiday">إجازة أعياد / رسمية</option>
+</select>
+<div class="input-group" id="hourlyHoursGroup" style="display:none;">
+  <label>عدد الساعات (للإجازة الساعية)</label>
+  <input type="number" id="hourlyHours" min="1" step="0.25" />
+</div>
+
           </div>
           <div class="input-group">
             <label>ملاحظة (اختياري)</label>
@@ -570,10 +576,9 @@
       </div>
     </div>
   </div>
-
 <script>
-  // رابط الـ Web App من Google Apps Script (الذي ينتهي بـ /exec)
-const API_URL = "https://script.google.com/macros/s/AKfycbwzpbvipn3NsJjvk-Acq-UVJuwwSk_W56_-Gh8PxB3UED3_T121lSr8UvVzxQk-V1A1/exec";
+  // رابط الـ Web App من Google Apps Script
+const API_URL = "https://script.google.com/macros/s/AKfycbxbtQRZUbt3nwPApR6OZFKq4VRO7DKCCH56BV7zmfX3pJDu6hKNHvyzi2KZo1lFFWaJ/exec";
 
   let currentUser = null;
 
@@ -607,13 +612,11 @@ const API_URL = "https://script.google.com/macros/s/AKfycbwzpbvipn3NsJjvk-Acq-UV
     return res.json();
   }
 
-  // حفظ بيانات الدخول في المتصفح (للدخول التلقائي بعد التحديث)
+  // تخزين بيانات الدخول في المتصفح (للدخول التلقائي)
   function saveLoginToLocalStorage(employeeId, pin) {
     try {
       localStorage.setItem('gstoreHRUser', JSON.stringify({ employeeId, pin }));
-    } catch (e) {
-      // لو المتصفح يمنع التخزين نتجاهل الخطأ
-    }
+    } catch (e) {}
   }
 
   function clearLoginFromLocalStorage() {
@@ -632,10 +635,8 @@ const API_URL = "https://script.google.com/macros/s/AKfycbwzpbvipn3NsJjvk-Acq-UV
       document.getElementById('loginEmployeeId').value = u.employeeId;
       document.getElementById('loginPin').value = u.pin;
 
-      await handleLogin(true); // true = لا نعرض رسائل خطأ في البداية
-    } catch (e) {
-      // نتجاهل أي خطأ في القراءة
-    }
+      await handleLogin(true); // isAuto = true
+    } catch (e) {}
   }
 
   async function handleLogin(isAuto = false) {
@@ -668,7 +669,6 @@ const API_URL = "https://script.google.com/macros/s/AKfycbwzpbvipn3NsJjvk-Acq-UV
         role: data.employee.Role
       };
 
-      // حفظ بيانات الدخول للدخول التلقائي بعد التحديث/إعادة فتح الصفحة
       saveLoginToLocalStorage(currentUser.employeeId, currentUser.pin);
 
       document.getElementById('headerUserInfo').textContent =
@@ -736,6 +736,27 @@ const API_URL = "https://script.google.com/macros/s/AKfycbwzpbvipn3NsJjvk-Acq-UV
     });
   }
 
+  function formatDate(value) {
+    if (!value) return '';
+    const d = new Date(value);
+    if (isNaN(d)) return String(value).split('T')[0] || String(value);
+    return d.toISOString().split('T')[0];
+  }
+
+  function getLeaveTypeLabel(t) {
+    switch (t) {
+      case 'Annual': return 'سنوية';
+      case 'Sick': return 'مرضية';
+      case 'Exceptional': return 'استثنائية';
+      case 'Hourly': return 'ساعية (من الاستثنائية)';
+      case 'Marriage': return 'زواج';
+      case 'Bereavement1': return 'وفاة (درجة أولى)';
+      case 'Bereavement2': return 'وفاة (درجة ثانية)';
+      case 'Holiday': return 'عيد / رسمي';
+      default: return t || '';
+    }
+  }
+
   async function loadEmployeeDashboard() {
     if (!currentUser) return;
     try {
@@ -782,7 +803,7 @@ const API_URL = "https://script.google.com/macros/s/AKfycbwzpbvipn3NsJjvk-Acq-UV
           <td>${formatDate(req.StartDate)}</td>
           <td>${formatDate(req.EndDate)}</td>
           <td>${req.Days}</td>
-          <td>${req.Type || ''}</td>
+          <td>${getLeaveTypeLabel(req.Type || '')}</td>
           <td><span class="status-badge ${statusClass}">${req.Status}</span></td>
         `;
         leaveTbody.appendChild(tr);
@@ -813,13 +834,6 @@ const API_URL = "https://script.google.com/macros/s/AKfycbwzpbvipn3NsJjvk-Acq-UV
     }
   }
 
-  function formatDate(value) {
-    if (!value) return '';
-    const d = new Date(value);
-    if (isNaN(d)) return String(value).split('T')[0] || String(value);
-    return d.toISOString().split('T')[0];
-  }
-
   async function submitLeave() {
     if (!currentUser) return;
 
@@ -827,10 +841,19 @@ const API_URL = "https://script.google.com/macros/s/AKfycbwzpbvipn3NsJjvk-Acq-UV
     const endDate = document.getElementById('leaveEndDate').value;
     const type = document.getElementById('leaveType').value;
     const comment = document.getElementById('leaveComment').value;
+    let hourlyHours = null;
 
     if (!startDate || !endDate) {
       setAlert('employeeAlert', 'يرجى اختيار تاريخ البداية والنهاية', 'error');
       return;
+    }
+
+    if (type === 'Hourly') {
+      hourlyHours = parseFloat(document.getElementById('hourlyHours').value || '0');
+      if (!hourlyHours || hourlyHours <= 0) {
+        setAlert('employeeAlert', 'يرجى إدخال عدد الساعات للإجازة الساعية', 'error');
+        return;
+      }
     }
 
     try {
@@ -840,7 +863,8 @@ const API_URL = "https://script.google.com/macros/s/AKfycbwzpbvipn3NsJjvk-Acq-UV
         startDate,
         endDate,
         type,
-        comment
+        comment,
+        hourlyHours
       });
 
       if (!data.ok) {
@@ -848,8 +872,15 @@ const API_URL = "https://script.google.com/macros/s/AKfycbwzpbvipn3NsJjvk-Acq-UV
         return;
       }
 
-      setAlert('employeeAlert', 'تم إرسال طلب الإجازة بنجاح (رقم الطلب: ' + data.requestId + ')', 'success');
+      let msg = 'تم إرسال طلب الإجازة بنجاح (رقم الطلب: ' + data.requestId + ').';
+      if (data.policyWarningsText) {
+        msg += ' تنبيه: ' + data.policyWarningsText;
+      }
+
+      setAlert('employeeAlert', msg, 'success');
       document.getElementById('leaveComment').value = '';
+      const hhInput = document.getElementById('hourlyHours');
+      if (hhInput) hhInput.value = '';
       await loadEmployeeDashboard();
 
       if (currentUser.role === 'Manager' || currentUser.role === 'Admin') {
@@ -881,20 +912,29 @@ const API_URL = "https://script.google.com/macros/s/AKfycbwzpbvipn3NsJjvk-Acq-UV
 
       if (!data.leaves || data.leaves.length === 0) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="10">لا توجد طلبات معلّقة حالياً.</td>`;
+        tr.innerHTML = `<td colspan="8">لا توجد طلبات معلّقة حالياً.</td>`;
         tbody.appendChild(tr);
         return;
       }
 
       data.leaves.forEach(req => {
-        const tr = document.createElement('tr');
-        const before = (req.AnnualRemainingBefore !== null && req.AnnualRemainingBefore !== undefined)
-          ? req.AnnualRemainingBefore
-          : '';
-        const after = (req.AnnualRemainingAfter !== null && req.AnnualRemainingAfter !== undefined)
-          ? req.AnnualRemainingAfter
-          : '';
+        const infoLines = [];
+        if (req.AnnualRemainingBefore !== null && req.AnnualRemainingBefore !== undefined) {
+          infoLines.push('قبل: ' + req.AnnualRemainingBefore);
+        }
+        if (req.AnnualRemainingAfter !== null && req.AnnualRemainingAfter !== undefined) {
+          infoLines.push('بعد: ' + req.AnnualRemainingAfter);
+        }
+        if (req.PolicyWarningsText) {
+          infoLines.push('⚠ ' + req.PolicyWarningsText);
+        }
 
+        let typeHtml = getLeaveTypeLabel(req.Type || '');
+        if (infoLines.length) {
+          typeHtml += '<br><small>' + infoLines.join(' | ') + '</small>';
+        }
+
+        const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${req.RequestID}</td>
           <td>${req.EmployeeID}</td>
@@ -902,9 +942,7 @@ const API_URL = "https://script.google.com/macros/s/AKfycbwzpbvipn3NsJjvk-Acq-UV
           <td>${formatDate(req.StartDate)}</td>
           <td>${formatDate(req.EndDate)}</td>
           <td>${req.Days}</td>
-          <td>${req.Type || ''}</td>
-          <td>${before}</td>
-          <td>${after}</td>
+          <td>${typeHtml}</td>
           <td>
             <button class="btn btn-sm btn-primary" onclick="managerDecision(${req.RequestID}, 'Approved')">موافقة</button>
             <button class="btn btn-sm btn-secondary" onclick="managerDecision(${req.RequestID}, 'Rejected')">رفض</button>
@@ -1020,10 +1058,23 @@ const API_URL = "https://script.google.com/macros/s/AKfycbwzpbvipn3NsJjvk-Acq-UV
 
   document.addEventListener('DOMContentLoaded', () => {
     showView(false);
-    // نحاول تسجيل الدخول تلقائياً إن وجد بيانات محفوظة
     tryAutoLogin();
+
+    // إظهار/إخفاء حقل الساعات عند اختيار "إجازة ساعية"
+    const leaveTypeSelect = document.getElementById('leaveType');
+    const hourlyGroup = document.getElementById('hourlyHoursGroup');
+    if (leaveTypeSelect && hourlyGroup) {
+      leaveTypeSelect.addEventListener('change', () => {
+        if (leaveTypeSelect.value === 'Hourly') {
+          hourlyGroup.style.display = 'block';
+        } else {
+          hourlyGroup.style.display = 'none';
+        }
+      });
+    }
   });
 </script>
+
 
 </body>
 </html>
