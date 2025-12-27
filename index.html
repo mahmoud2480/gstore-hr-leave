@@ -515,6 +515,8 @@
                   <th>إلى</th>
                   <th>أيام</th>
                   <th>النوع</th>
+                  <th>الرصيد قبل</th>
+                  <th>الرصيد بعد</th>
                   <th>الإجراء</th>
                 </tr>
               </thead>
@@ -526,8 +528,8 @@
         <div class="card" style="background:#f9fafb;">
           <h3 class="card-title" style="font-size:0.9rem;">تسجيل إضافي لموظف في القسم</h3>
           <div class="input-group">
-            <label>رقم الموظف</label>
-            <input type="text" id="mgrOtEmployeeId" placeholder="EmployeeID" />
+            <label>اسم الموظف أو رقم الموظف</label>
+            <input type="text" id="mgrOtEmployeeId" placeholder="اكتب الاسم أو EmployeeID" />
           </div>
           <div class="input-group">
             <label>التاريخ</label>
@@ -570,8 +572,8 @@
   </div>
 
   <script>
-    // 🔗 ضع هنا رابط الـ Web App من Google Apps Script (الذي ينتهي بـ /exec)
-    const API_URL = "https://script.google.com/macros/s/AKfycbzB5c44f4j_GidCDRtQkEhbxNql0hKCbBnhk0pgTlG_OTVPjtIuN0DIGUn8YX2K3rrc/exec";
+    // رابط الـ Web App من Google Apps Script (الذي ينتهي بـ /exec)
+const API_URL = "https://script.google.com/macros/s/AKfycbzpiS7kqGbRF50u0HSV5DyeamztF5HyYyV_GOSF-9Pfvnzz-YRG-_BmXj5CaVSGu6vX/exec";
 
     let currentUser = null;
 
@@ -594,16 +596,16 @@
       else el.classList.add('alert-error');
     }
 
-async function apiCall(action, payload) {
-  const body = JSON.stringify({ action, ...payload });
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain" }, // مهم جداً بدون charset
-    body: body
-  });
-  return res.json();
-}
-
+    // استدعاء API بدون CORS preflight
+    async function apiCall(action, payload) {
+      const body = JSON.stringify({ action, ...payload });
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: body
+      });
+      return res.json();
+    }
 
     async function handleLogin() {
       const empId = document.getElementById('loginEmployeeId').value.trim();
@@ -710,9 +712,17 @@ async function apiCall(action, payload) {
         const lb = data.leaveBalance || { annual: 0, used: 0, remaining: 0 };
         const statsRow = document.getElementById('leaveStatsRow');
         statsRow.innerHTML = `
-          <div class="stat-pill"><span>رصيد هذه السنة</span><strong>${lb.annual}</strong></div>
-          <div class="stat-pill"><span>المستخدم (من السنوية)</span><strong>${lb.used}</strong></div>
-          <div class="stat-pill"><span>المتبقي حتى نهاية السنة</span><strong>${lb.remaining}</strong></div>
+          <div class="stat-pill"><span>سنوية مستحقة</span><strong>${lb.annual}</strong></div>
+          <div class="stat-pill"><span>مستخدم من السنوية</span><strong>${lb.used}</strong></div>
+          <div class="stat-pill"><span>متبقي سنوية</span><strong>${lb.remaining}</strong></div>
+
+          <div class="stat-pill"><span>مرضية مستخدمة</span><strong>${lb.sickUsed || 0}/${lb.sickLimitTotal || 10}</strong></div>
+          <div class="stat-pill"><span>مرضية مجانية</span><strong>${lb.sickFree || 0}/${lb.sickLimitFree || 7}</strong></div>
+          <div class="stat-pill"><span>مرضية من السنوية</span><strong>${lb.sickFromAnnual || 0}</strong></div>
+
+          <div class="stat-pill"><span>استثنائية مستخدمة</span><strong>${lb.exceptionalUsed || 0}</strong></div>
+          <div class="stat-pill"><span>استثنائية مجانية</span><strong>${lb.exceptionalFree || 0}</strong></div>
+          <div class="stat-pill"><span>استثنائية من السنوية</span><strong>${lb.exceptionalFromAnnual || 0}</strong></div>
         `;
 
         const leaveTbody = document.querySelector('#leaveTable tbody');
@@ -830,13 +840,20 @@ async function apiCall(action, payload) {
 
         if (!data.leaves || data.leaves.length === 0) {
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td colspan="8">لا توجد طلبات معلّقة حالياً.</td>`;
+          tr.innerHTML = `<td colspan="10">لا توجد طلبات معلّقة حالياً.</td>`;
           tbody.appendChild(tr);
           return;
         }
 
         data.leaves.forEach(req => {
           const tr = document.createElement('tr');
+          const before = (req.AnnualRemainingBefore !== null && req.AnnualRemainingBefore !== undefined)
+            ? req.AnnualRemainingBefore
+            : '';
+          const after = (req.AnnualRemainingAfter !== null && req.AnnualRemainingAfter !== undefined)
+            ? req.AnnualRemainingAfter
+            : '';
+
           tr.innerHTML = `
             <td>${req.RequestID}</td>
             <td>${req.EmployeeID}</td>
@@ -845,6 +862,8 @@ async function apiCall(action, payload) {
             <td>${formatDate(req.EndDate)}</td>
             <td>${req.Days}</td>
             <td>${req.Type || ''}</td>
+            <td>${before}</td>
+            <td>${after}</td>
             <td>
               <button class="btn btn-sm btn-primary" onclick="managerDecision(${req.RequestID}, 'Approved')">موافقة</button>
               <button class="btn btn-sm btn-secondary" onclick="managerDecision(${req.RequestID}, 'Rejected')">رفض</button>
@@ -888,13 +907,13 @@ async function apiCall(action, payload) {
     async function managerAddOvertime() {
       if (!currentUser) return;
 
-      const empId = document.getElementById('mgrOtEmployeeId').value.trim();
+      const empInput = document.getElementById('mgrOtEmployeeId').value.trim();
       const date = document.getElementById('mgrOtDate').value;
       const hours = document.getElementById('mgrOtHours').value;
       const rate = document.getElementById('mgrOtRate').value;
 
-      if (!empId || !date || !hours) {
-        setAlert('managerAlert', 'يرجى إدخال رقم الموظف والتاريخ وعدد الساعات', 'error');
+      if (!empInput || !date || !hours) {
+        setAlert('managerAlert', 'يرجى إدخال اسم/رقم الموظف والتاريخ وعدد الساعات', 'error');
         return;
       }
 
@@ -902,7 +921,8 @@ async function apiCall(action, payload) {
         const payload = {
           managerId: currentUser.employeeId,
           pin: currentUser.pin,
-          employeeId: empId,
+          employeeId: empInput,
+          employeeName: empInput,
           date,
           hours
         };
