@@ -228,7 +228,7 @@
     }
 
     .stat-pill {
-      flex: 1 1 120px;
+      flex: 1 1 140px;
       background: #eff6ff;
       border-radius: 999px;
       padding: 6px 10px;
@@ -368,7 +368,7 @@
 
         <div class="input-group">
           <label>رقم الموظف (EmployeeID)</label>
-          <input type="text" id="loginEmployeeId" placeholder="مثال: A101" />
+          <input type="text" id="loginEmployeeId" placeholder="مثال: A1" />
         </div>
 
         <div class="input-group">
@@ -408,19 +408,20 @@
         </div>
       </div>
 
-<h2 class="card-title">
-  لوحة الموظف
-  <span class="badge" id="employeeNameBadge"></span>
-  <button
-    type="button"
-    class="btn btn-secondary btn-sm"
-    style="margin-right:auto;"
-    onclick="loadEmployeeDashboard()"
-  >
-    🔄 تحديث البيانات
-  </button>
-</h2>
-
+      <!-- لوحة الموظف -->
+      <div id="employeePanel" class="card">
+        <h2 class="card-title">
+          لوحة الموظف
+          <span class="badge" id="employeeNameBadge"></span>
+          <button
+            type="button"
+            class="btn btn-secondary btn-sm"
+            style="margin-right:auto;"
+            onclick="loadEmployeeDashboard()"
+          >
+            🔄 تحديث البيانات
+          </button>
+        </h2>
 
         <div id="employeeAlert" class="alert hidden"></div>
 
@@ -439,21 +440,15 @@
           </div>
           <div class="input-group">
             <label>نوع الإجازة</label>
-<select id="leaveType">
-  <option value="Annual">سنوية</option>
-  <option value="Sick">مرضية</option>
-  <option value="Marriage">زواج</option>
-  <option value="Bereavement1">وفاة (درجة أولى)</option>
-  <option value="Bereavement2">وفاة (درجة ثانية)</option>
-  <option value="Exceptional">استثنائية</option>
-  <option value="Hourly">إجازة ساعية (من الاستثنائية)</option>
-  <option value="Holiday">إجازة أعياد / رسمية</option>
-</select>
-<div class="input-group" id="hourlyHoursGroup" style="display:none;">
-  <label>عدد الساعات (للإجازة الساعية)</label>
-  <input type="number" id="hourlyHours" min="1" step="0.25" />
-</div>
-
+            <select id="leaveType">
+              <option value="Annual">سنوية</option>
+              <option value="Sick">مرضية</option>
+              <option value="Marriage">زواج</option>
+              <option value="Bereavement1">وفاة (درجة أولى)</option>
+              <option value="Bereavement2">وفاة (درجة ثانية)</option>
+              <option value="Exceptional">استثنائية</option>
+              <option value="Holiday">إجازة أعياد / رسمية</option>
+            </select>
           </div>
           <div class="input-group">
             <label>ملاحظة (اختياري)</label>
@@ -530,6 +525,7 @@
                   <th>النوع</th>
                   <th>الرصيد قبل</th>
                   <th>الرصيد بعد</th>
+                  <th>التنبيهات</th>
                   <th>الإجراء</th>
                 </tr>
               </thead>
@@ -540,9 +536,12 @@
 
         <div class="card" style="background:#f9fafb;">
           <h3 class="card-title" style="font-size:0.9rem;">تسجيل إضافي لموظف في القسم</h3>
+
           <div class="input-group">
             <label>اسم الموظف أو رقم الموظف</label>
-            <input type="text" id="mgrOtEmployeeId" placeholder="اكتب الاسم أو EmployeeID" />
+            <select id="mgrOtEmployeeSelect">
+              <option value="">اختر الموظف</option>
+            </select>
           </div>
           <div class="input-group">
             <label>التاريخ</label>
@@ -583,531 +582,462 @@
       </div>
     </div>
   </div>
-<script>
-  // رابط الـ Web App من Google Apps Script
-const API_URL = "https://script.google.com/macros/s/AKfycbym03NiZ-BiAZvbUUExzyGsA1VJSLRhp7KpyBRPyo1HG0g6oR8q6_hRbGNZndjYr0KG/exec";
 
+  <script>
+    // 🔗 رابط الـ Web App الحالي
+    const API_URL = "https://script.google.com/macros/s/AKfycbwBOsdjMpeAZYUnIjygPjsOVr9vtdaiGvzhZDm_1XAPTSxBn2-OPUwh2e58gjzlMnup/exec";
 
-  let currentUser = null;
+    let currentUser = null;
 
-  function showView(isLoggedIn) {
-    document.getElementById('loginView').classList.toggle('hidden', isLoggedIn);
-    document.getElementById('appView').classList.toggle('hidden', !isLoggedIn);
-  }
-
-  function setAlert(id, message, type) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (!message) {
-      el.classList.add('hidden');
-      return;
+    function showView(isLoggedIn) {
+      document.getElementById('loginView').classList.toggle('hidden', isLoggedIn);
+      document.getElementById('appView').classList.toggle('hidden', !isLoggedIn);
     }
-    el.textContent = message;
-    el.classList.remove('hidden');
-    el.classList.remove('alert-success', 'alert-error');
-    if (type === 'success') el.classList.add('alert-success');
-    else el.classList.add('alert-error');
-  }
 
-  // استدعاء API بدون CORS preflight
-  async function apiCall(action, payload) {
-    const body = JSON.stringify({ action, ...payload });
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain" },
-      body: body
-    });
-    return res.json();
-  }
-
-  // تخزين بيانات الدخول في المتصفح (للدخول التلقائي)
-  function saveLoginToLocalStorage(employeeId, pin) {
-    try {
-      localStorage.setItem('gstoreHRUser', JSON.stringify({ employeeId, pin }));
-    } catch (e) {}
-  }
-
-  function clearLoginFromLocalStorage() {
-    try {
-      localStorage.removeItem('gstoreHRUser');
-    } catch (e) {}
-  }
-
-  async function tryAutoLogin() {
-    try {
-      const saved = localStorage.getItem('gstoreHRUser');
-      if (!saved) return;
-      const u = JSON.parse(saved);
-      if (!u.employeeId || !u.pin) return;
-
-      document.getElementById('loginEmployeeId').value = u.employeeId;
-      document.getElementById('loginPin').value = u.pin;
-
-      await handleLogin(true); // isAuto = true
-    } catch (e) {}
-  }
-
-  async function handleLogin(isAuto = false) {
-    const empId = document.getElementById('loginEmployeeId').value.trim();
-    const pin = document.getElementById('loginPin').value.trim();
-
-    if (!empId || !pin) {
-      if (!isAuto) {
-        setAlert('loginAlert', 'يرجى إدخال رقم الموظف والرمز السري', 'error');
+    function setAlert(id, message, type) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (!message) {
+        el.classList.add('hidden');
+        return;
       }
-      return;
+      el.textContent = message;
+      el.classList.remove('hidden');
+      el.classList.remove('alert-success', 'alert-error');
+      if (type === 'success') el.classList.add('alert-success');
+      else el.classList.add('alert-error');
     }
 
-    try {
-      setAlert('loginAlert', '', '');
-      const data = await apiCall('login', { employeeId: empId, pin });
+    async function apiCall(action, payload) {
+      const body = JSON.stringify({ action, ...payload });
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: body
+      });
+      return res.json();
+    }
 
-      if (!data.ok) {
-        if (!isAuto) {
-          setAlert('loginAlert', data.error || 'فشل تسجيل الدخول', 'error');
-        }
+    async function handleLogin() {
+      const empId = document.getElementById('loginEmployeeId').value.trim();
+      const pin = document.getElementById('loginPin').value.trim();
+
+      if (!empId || !pin) {
+        setAlert('loginAlert', 'يرجى إدخال رقم الموظف والرمز السري', 'error');
         return;
       }
 
-      currentUser = {
-        employeeId: data.employee.EmployeeID,
-        pin: pin,
-        name: data.employee.Name,
-        dept: data.employee.Department,
-        role: data.employee.Role
-      };
+      try {
+        setAlert('loginAlert', '', '');
+        const data = await apiCall('login', { employeeId: empId, pin });
 
-      saveLoginToLocalStorage(currentUser.employeeId, currentUser.pin);
+        if (!data.ok) {
+          setAlert('loginAlert', data.error || 'فشل تسجيل الدخول', 'error');
+          return;
+        }
 
-      document.getElementById('headerUserInfo').textContent =
-        currentUser.name + " – " + currentUser.employeeId + " (" + currentUser.role + ")";
+        currentUser = {
+          employeeId: data.employee.EmployeeID,
+          pin: pin,
+          name: data.employee.Name,
+          dept: data.employee.Department,
+          role: data.employee.Role
+        };
 
-      document.getElementById('employeeNameBadge').textContent =
-        currentUser.name + " – " + currentUser.employeeId;
+        document.getElementById('headerUserInfo').textContent =
+          currentUser.name + " – " + currentUser.employeeId + " (" + currentUser.role + ")";
 
-      const mgrTab = document.getElementById('managerTab');
-      const adminTab = document.getElementById('adminTab');
-      if (currentUser.role === 'Manager' || currentUser.role === 'Admin') {
-        mgrTab.classList.remove('hidden');
-      } else {
-        mgrTab.classList.add('hidden');
-      }
-      if (currentUser.role === 'Admin') {
-        adminTab.classList.remove('hidden');
-      } else {
-        adminTab.classList.add('hidden');
-      }
+        document.getElementById('employeeNameBadge').textContent =
+          currentUser.name + " – " + currentUser.employeeId;
 
-      showView(true);
-      initTabs();
-      await loadEmployeeDashboard();
+        const mgrTab = document.getElementById('managerTab');
+        const adminTab = document.getElementById('adminTab');
+        if (currentUser.role === 'Manager' || currentUser.role === 'Admin') {
+          mgrTab.classList.remove('hidden');
+        } else {
+          mgrTab.classList.add('hidden');
+        }
+        if (currentUser.role === 'Admin') {
+          adminTab.classList.remove('hidden');
+        } else {
+          adminTab.classList.add('hidden');
+        }
 
-      if (currentUser.role === 'Manager' || currentUser.role === 'Admin') {
-        loadManagerLeaves();
-      }
+        showView(true);
+        initTabs();
+        await loadEmployeeDashboard();
 
-    } catch (err) {
-      if (!isAuto) {
+        if (currentUser.role === 'Manager' || currentUser.role === 'Admin') {
+          loadManagerLeaves();
+          loadManagerEmployees();
+        }
+
+      } catch (err) {
         setAlert('loginAlert', err.message || 'خطأ غير متوقع', 'error');
       }
     }
-  }
 
-  function logout() {
-    currentUser = null;
-    clearLoginFromLocalStorage();
-    document.getElementById('loginEmployeeId').value = "";
-    document.getElementById('loginPin').value = "";
-    showView(false);
-  }
+    function logout() {
+      currentUser = null;
+      document.getElementById('loginEmployeeId').value = "";
+      document.getElementById('loginPin').value = "";
+      showView(false);
+    }
 
-  function initTabs() {
-    const tabs = document.querySelectorAll('.tab');
-    tabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        tabs.forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
+    function initTabs() {
+      const tabs = document.querySelectorAll('.tab');
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          tabs.forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
 
-        const target = tab.getAttribute('data-target');
-        ['employeePanel','managerPanel','adminPanel'].forEach(id => {
-          document.getElementById(id).classList.add('hidden');
+          const target = tab.getAttribute('data-target');
+          ['employeePanel','managerPanel','adminPanel'].forEach(id => {
+            document.getElementById(id).classList.add('hidden');
+          });
+          if (target) {
+            document.getElementById(target).classList.remove('hidden');
+          }
+
+          if (target === 'managerPanel' && currentUser &&
+              (currentUser.role === 'Manager' || currentUser.role === 'Admin')) {
+            loadManagerLeaves();
+            loadManagerEmployees();
+          }
         });
-        if (target) {
-          document.getElementById(target).classList.remove('hidden');
+      });
+    }
+
+    function formatDate(value) {
+      if (!value) return '';
+      const d = new Date(value);
+      if (isNaN(d)) return String(value).split('T')[0] || String(value);
+      return d.toISOString().split('T')[0];
+    }
+
+    async function loadEmployeeDashboard() {
+      if (!currentUser) return;
+      try {
+        setAlert('employeeAlert', '', '');
+        const data = await apiCall('getDashboard', {
+          employeeId: currentUser.employeeId,
+          pin: currentUser.pin
+        });
+
+        if (!data.ok) {
+          setAlert('employeeAlert', data.error || 'خطأ في تحميل البيانات', 'error');
+          return;
         }
 
-        if (target === 'managerPanel' && currentUser &&
-            (currentUser.role === 'Manager' || currentUser.role === 'Admin')) {
+        const lb = data.leaveBalance || {};
+        const statsRow = document.getElementById('leaveStatsRow');
+        statsRow.innerHTML = `
+          <div class="stat-pill"><span>السنوية الكاملة</span><strong>${lb.annual || 0}</strong></div>
+          <div class="stat-pill"><span>مستخدم من السنوية</span><strong>${lb.used || 0}</strong></div>
+          <div class="stat-pill"><span>المتبقي من السنوية</span><strong>${lb.remaining || 0}</strong></div>
+          <div class="stat-pill"><span>مرضية: مجانية / من السنوية</span><strong>${lb.sickFree || 0} / ${lb.sickFromAnnual || 0}</strong></div>
+          <div class="stat-pill"><span>استثنائية/ساعية: مجانية / من السنوية</span><strong>${lb.exceptionalFree || 0} / ${lb.exceptionalFromAnnual || 0}</strong></div>
+        `;
+
+        const leaveTbody = document.querySelector('#leaveTable tbody');
+        leaveTbody.innerHTML = '';
+        (data.leaves || []).forEach(req => {
+          const tr = document.createElement('tr');
+          const statusClass =
+            req.Status === 'Approved'
+              ? 'status-approved'
+              : req.Status === 'Rejected'
+              ? 'status-rejected'
+              : 'status-pending';
+
+          tr.innerHTML = `
+            <td>${req.RequestID}</td>
+            <td>${formatDate(req.StartDate)}</td>
+            <td>${formatDate(req.EndDate)}</td>
+            <td>${req.Days}</td>
+            <td>${req.Type || ''}</td>
+            <td><span class="status-badge ${statusClass}">${req.Status}</span></td>
+          `;
+          leaveTbody.appendChild(tr);
+        });
+
+        const otStatsRow = document.getElementById('otStatsRow');
+        otStatsRow.innerHTML = `
+          <div class="stat-pill"><span>إجمالي الساعات</span><strong>${data.overtime.totalHours || 0}</strong></div>
+          <div class="stat-pill"><span>إجمالي القيمة</span><strong>${data.overtime.totalValue || 0}</strong></div>
+        `;
+
+        const otTbody = document.querySelector('#otTable tbody');
+        otTbody.innerHTML = '';
+        (data.overtime.records || []).forEach(rec => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${rec.OTID}</td>
+            <td>${formatDate(rec.Date)}</td>
+            <td>${rec.Hours}</td>
+            <td>${rec.Rate}</td>
+            <td>${rec.Value}</td>
+          `;
+          otTbody.appendChild(tr);
+        });
+
+      } catch (err) {
+        setAlert('employeeAlert', err.message || 'خطأ غير متوقع', 'error');
+      }
+    }
+
+    async function submitLeave() {
+      if (!currentUser) return;
+
+      const startDate = document.getElementById('leaveStartDate').value;
+      const endDate = document.getElementById('leaveEndDate').value;
+      const type = document.getElementById('leaveType').value;
+      const comment = document.getElementById('leaveComment').value;
+
+      if (!startDate || !endDate) {
+        setAlert('employeeAlert', 'يرجى اختيار تاريخ البداية والنهاية', 'error');
+        return;
+      }
+
+      try {
+        const data = await apiCall('submitLeave', {
+          employeeId: currentUser.employeeId,
+          pin: currentUser.pin,
+          startDate,
+          endDate,
+          type,
+          comment
+        });
+
+        if (!data.ok) {
+          setAlert('employeeAlert', data.error || 'فشل إرسال طلب الإجازة', 'error');
+          return;
+        }
+
+        let msg = 'تم إرسال طلب الإجازة بنجاح (رقم الطلب: ' + data.requestId + ')';
+        if (data.policyWarningsText) {
+          msg += ' – تنبيهات السياسة: ' + data.policyWarningsText;
+        }
+        setAlert('employeeAlert', msg, 'success');
+        document.getElementById('leaveComment').value = '';
+        await loadEmployeeDashboard();
+
+        if (currentUser.role === 'Manager' || currentUser.role === 'Admin') {
           loadManagerLeaves();
         }
-      });
+      } catch (err) {
+        setAlert('employeeAlert', err.message || 'خطأ غير متوقع', 'error');
+      }
+    }
+
+    async function loadManagerLeaves() {
+      if (!currentUser) return;
+
+      try {
+        const data = await apiCall('getManagerLeaves', {
+          managerId: currentUser.employeeId,
+          pin: currentUser.pin
+        });
+
+        if (!data.ok) {
+          setAlert('managerAlert', data.error || 'فشل تحميل طلبات الإجازة', 'error');
+          return;
+        }
+
+        setAlert('managerAlert', '', '');
+
+        const tbody = document.querySelector('#managerLeaveTable tbody');
+        tbody.innerHTML = '';
+
+        if (!data.leaves || data.leaves.length === 0) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td colspan="11">لا توجد طلبات معلّقة حالياً.</td>`;
+          tbody.appendChild(tr);
+          return;
+        }
+
+        data.leaves.forEach(req => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${req.RequestID}</td>
+            <td>${req.EmployeeName || req.EmployeeID}</td>
+            <td>${req.EmployeeDepartment || ''}</td>
+            <td>${formatDate(req.StartDate)}</td>
+            <td>${formatDate(req.EndDate)}</td>
+            <td>${req.Days}</td>
+            <td>${req.Type || ''}</td>
+            <td>${req.AnnualRemainingBefore ?? ''}</td>
+            <td>${req.AnnualRemainingAfter ?? ''}</td>
+            <td style="max-width:200px;">${req.PolicyWarningsText || ''}</td>
+            <td>
+              <button class="btn btn-sm btn-primary" onclick="managerDecision(${req.RequestID}, 'Approved')">موافقة</button>
+              <button class="btn btn-sm btn-secondary" onclick="managerDecision(${req.RequestID}, 'Rejected')">رفض</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+      } catch (err) {
+        setAlert('managerAlert', err.message || 'خطأ غير متوقع', 'error');
+      }
+    }
+
+    async function managerDecision(requestId, status) {
+      if (!currentUser) return;
+
+      try {
+        const data = await apiCall('approveLeave', {
+          managerId: currentUser.employeeId,
+          pin: currentUser.pin,
+          requestId,
+          status,
+          comment: ''
+        });
+
+        if (!data.ok) {
+          setAlert('managerAlert', data.error || 'فشل تحديث حالة الطلب', 'error');
+          return;
+        }
+
+        setAlert('managerAlert', 'تم تحديث حالة الطلب بنجاح.', 'success');
+
+        await loadManagerLeaves();
+        await loadEmployeeDashboard();
+
+      } catch (err) {
+        setAlert('managerAlert', err.message || 'خطأ غير متوقع', 'error');
+      }
+    }
+
+    async function loadManagerEmployees() {
+      if (!currentUser) return;
+      try {
+        const data = await apiCall('getManagerEmployees', {
+          managerId: currentUser.employeeId,
+          pin: currentUser.pin
+        });
+
+        if (!data.ok) {
+          console.error('Failed to load manager employees:', data.error);
+          return;
+        }
+
+        const select = document.getElementById('mgrOtEmployeeSelect');
+        if (!select) return;
+
+        select.innerHTML = '<option value="">اختر الموظف</option>';
+
+        (data.employees || []).forEach(emp => {
+          const opt = document.createElement('option');
+          opt.value = emp.EmployeeID;
+          opt.textContent = `${emp.Name} – ${emp.EmployeeID}`;
+          select.appendChild(opt);
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function managerAddOvertime() {
+      if (!currentUser) return;
+
+      const empSelect = document.getElementById('mgrOtEmployeeSelect');
+      const empId = empSelect ? empSelect.value.trim() : '';
+      const date = document.getElementById('mgrOtDate').value;
+      const hours = document.getElementById('mgrOtHours').value;
+      const rate = document.getElementById('mgrOtRate').value;
+
+      if (!empId || !date || !hours) {
+        setAlert('managerAlert', 'يرجى اختيار الموظف وإدخال التاريخ وعدد الساعات', 'error');
+        return;
+      }
+
+      try {
+        const payload = {
+          managerId: currentUser.employeeId,
+          pin: currentUser.pin,
+          employeeId: empId,
+          date,
+          hours
+        };
+        if (rate) payload.rate = rate;
+
+        const data = await apiCall('addOvertime', payload);
+
+        if (!data.ok) {
+          setAlert('managerAlert', data.error || 'فشل تسجيل الإضافي', 'error');
+          return;
+        }
+
+        setAlert('managerAlert', 'تم تسجيل الإضافي بنجاح. القيمة: ' + data.value, 'success');
+        document.getElementById('mgrOtHours').value = '';
+        document.getElementById('mgrOtRate').value = '';
+        await loadEmployeeDashboard();
+      } catch (err) {
+        setAlert('managerAlert', err.message || 'خطأ غير متوقع', 'error');
+      }
+    }
+
+    async function loadAdminReport() {
+      if (!currentUser) return;
+      try {
+        const data = await apiCall('adminReport', {
+          adminId: currentUser.employeeId,
+          pin: currentUser.pin
+        });
+
+        if (!data.ok) {
+          setAlert('adminAlert', data.error || 'فشل تحميل التقرير', 'error');
+          return;
+        }
+
+        setAlert('adminAlert', '', '');
+        const s = data.summary;
+        const d = s.leaveDetails || {};
+        const div = document.getElementById('adminSummary');
+
+        div.innerHTML = `
+          <div class="stats-row">
+            <div class="stat-pill"><span>عدد الموظفين</span><strong>${s.totalEmployees}</strong></div>
+            <div class="stat-pill"><span>طلبات معلقة</span><strong>${s.leave.pending}</strong></div>
+            <div class="stat-pill"><span>طلبات مقبولة</span><strong>${s.leave.approved}</strong></div>
+            <div class="stat-pill"><span>طلبات مرفوضة</span><strong>${s.leave.rejected}</strong></div>
+          </div>
+
+          <div class="stats-row">
+            <div class="stat-pill"><span>ساعات الإضافي الإجمالية</span><strong>${s.overtime.totalHours}</strong></div>
+            <div class="stat-pill"><span>قيمة الإضافي الإجمالية</span><strong>${s.overtime.totalValue}</strong></div>
+          </div>
+
+          <div class="stats-row">
+            <div class="stat-pill"><span>مجموع أيام الإجازات المقبولة</span><strong>${d.totalApprovedDays || 0}</strong></div>
+            <div class="stat-pill"><span>سنوية مستخدمة</span><strong>${d.annualDaysUsed || 0}</strong></div>
+            <div class="stat-pill"><span>مرضية</span><strong>${d.sickDaysUsed || 0}</strong></div>
+            <div class="stat-pill"><span>استثنائية / ساعية</span><strong>${d.exceptionalDaysUsed || 0}</strong></div>
+          </div>
+
+          <div class="stats-row">
+            <div class="stat-pill"><span>زواج</span><strong>${d.marriageDaysUsed || 0}</strong></div>
+            <div class="stat-pill"><span>وفاة درجة أولى</span><strong>${d.bereavement1DaysUsed || 0}</strong></div>
+            <div class="stat-pill"><span>وفاة درجة ثانية</span><strong>${d.bereavement2DaysUsed || 0}</strong></div>
+            <div class="stat-pill"><span>أعياد / رسمية</span><strong>${d.holidayDaysUsed || 0}</strong></div>
+          </div>
+
+          <div class="stats-row">
+            <div class="stat-pill">
+              <span>عدد الموظفين برصيد سنوي سالب</span>
+              <strong>${s.employeesWithNegativeAnnual || 0}</strong>
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        setAlert('adminAlert', err.message || 'خطأ غير متوقع', 'error');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      showView(false);
     });
-  }
-
-  function formatDate(value) {
-    if (!value) return '';
-    const d = new Date(value);
-    if (isNaN(d)) return String(value).split('T')[0] || String(value);
-    return d.toISOString().split('T')[0];
-  }
-
-  function getLeaveTypeLabel(t) {
-    switch (t) {
-      case 'Annual': return 'سنوية';
-      case 'Sick': return 'مرضية';
-      case 'Exceptional': return 'استثنائية';
-      case 'Hourly': return 'ساعية (من الاستثنائية)';
-      case 'Marriage': return 'زواج';
-      case 'Bereavement1': return 'وفاة (درجة أولى)';
-      case 'Bereavement2': return 'وفاة (درجة ثانية)';
-      case 'Holiday': return 'عيد / رسمي';
-      default: return t || '';
-    }
-  }
-
-  async function loadEmployeeDashboard() {
-    if (!currentUser) return;
-    try {
-      setAlert('employeeAlert', '', '');
-      const data = await apiCall('getDashboard', {
-        employeeId: currentUser.employeeId,
-        pin: currentUser.pin
-      });
-
-      if (!data.ok) {
-        setAlert('employeeAlert', data.error || 'خطأ في تحميل البيانات', 'error');
-        return;
-      }
-
-      const lb = data.leaveBalance || { annual: 0, used: 0, remaining: 0 };
-      const statsRow = document.getElementById('leaveStatsRow');
-      statsRow.innerHTML = `
-        <div class="stat-pill"><span>سنوية مستحقة</span><strong>${lb.annual}</strong></div>
-        <div class="stat-pill"><span>مستخدم من السنوية</span><strong>${lb.used}</strong></div>
-        <div class="stat-pill"><span>متبقي سنوية</span><strong>${lb.remaining}</strong></div>
-
-        <div class="stat-pill"><span>مرضية مستخدمة</span><strong>${lb.sickUsed || 0}/${lb.sickLimitTotal || 10}</strong></div>
-        <div class="stat-pill"><span>مرضية مجانية</span><strong>${lb.sickFree || 0}/${lb.sickLimitFree || 7}</strong></div>
-        <div class="stat-pill"><span>مرضية من السنوية</span><strong>${lb.sickFromAnnual || 0}</strong></div>
-
-        <div class="stat-pill"><span>استثنائية مستخدمة</span><strong>${lb.exceptionalUsed || 0}</strong></div>
-        <div class="stat-pill"><span>استثنائية مجانية</span><strong>${lb.exceptionalFree || 0}</strong></div>
-        <div class="stat-pill"><span>استثنائية من السنوية</span><strong>${lb.exceptionalFromAnnual || 0}</strong></div>
-      `;
-
-      const leaveTbody = document.querySelector('#leaveTable tbody');
-      leaveTbody.innerHTML = '';
-      (data.leaves || []).forEach(req => {
-        const tr = document.createElement('tr');
-        const statusClass =
-          req.Status === 'Approved'
-            ? 'status-approved'
-            : req.Status === 'Rejected'
-            ? 'status-rejected'
-            : 'status-pending';
-
-        tr.innerHTML = `
-          <td>${req.RequestID}</td>
-          <td>${formatDate(req.StartDate)}</td>
-          <td>${formatDate(req.EndDate)}</td>
-          <td>${req.Days}</td>
-          <td>${getLeaveTypeLabel(req.Type || '')}</td>
-          <td><span class="status-badge ${statusClass}">${req.Status}</span></td>
-        `;
-        leaveTbody.appendChild(tr);
-      });
-
-      const otStatsRow = document.getElementById('otStatsRow');
-      otStatsRow.innerHTML = `
-        <div class="stat-pill"><span>إجمالي الساعات</span><strong>${data.overtime.totalHours || 0}</strong></div>
-        <div class="stat-pill"><span>إجمالي القيمة</span><strong>${data.overtime.totalValue || 0}</strong></div>
-      `;
-
-      const otTbody = document.querySelector('#otTable tbody');
-      otTbody.innerHTML = '';
-      (data.overtime.records || []).forEach(rec => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${rec.OTID}</td>
-          <td>${formatDate(rec.Date)}</td>
-          <td>${rec.Hours}</td>
-          <td>${rec.Rate}</td>
-          <td>${rec.Value}</td>
-        `;
-        otTbody.appendChild(tr);
-      });
-
-    } catch (err) {
-      setAlert('employeeAlert', err.message || 'خطأ غير متوقع', 'error');
-    }
-  }
-
-  async function submitLeave() {
-    if (!currentUser) return;
-
-    const startDate = document.getElementById('leaveStartDate').value;
-    const endDate = document.getElementById('leaveEndDate').value;
-    const type = document.getElementById('leaveType').value;
-    const comment = document.getElementById('leaveComment').value;
-    let hourlyHours = null;
-
-    if (!startDate || !endDate) {
-      setAlert('employeeAlert', 'يرجى اختيار تاريخ البداية والنهاية', 'error');
-      return;
-    }
-
-    if (type === 'Hourly') {
-      hourlyHours = parseFloat(document.getElementById('hourlyHours').value || '0');
-      if (!hourlyHours || hourlyHours <= 0) {
-        setAlert('employeeAlert', 'يرجى إدخال عدد الساعات للإجازة الساعية', 'error');
-        return;
-      }
-    }
-
-    try {
-      const data = await apiCall('submitLeave', {
-        employeeId: currentUser.employeeId,
-        pin: currentUser.pin,
-        startDate,
-        endDate,
-        type,
-        comment,
-        hourlyHours
-      });
-
-      if (!data.ok) {
-        setAlert('employeeAlert', data.error || 'فشل إرسال طلب الإجازة', 'error');
-        return;
-      }
-
-      let msg = 'تم إرسال طلب الإجازة بنجاح (رقم الطلب: ' + data.requestId + ').';
-      if (data.policyWarningsText) {
-        msg += ' تنبيه: ' + data.policyWarningsText;
-      }
-
-      setAlert('employeeAlert', msg, 'success');
-      document.getElementById('leaveComment').value = '';
-      const hhInput = document.getElementById('hourlyHours');
-      if (hhInput) hhInput.value = '';
-      await loadEmployeeDashboard();
-
-      if (currentUser.role === 'Manager' || currentUser.role === 'Admin') {
-        loadManagerLeaves();
-      }
-    } catch (err) {
-      setAlert('employeeAlert', err.message || 'خطأ غير متوقع', 'error');
-    }
-  }
-
-  async function loadManagerLeaves() {
-    if (!currentUser) return;
-
-    try {
-      const data = await apiCall('getManagerLeaves', {
-        managerId: currentUser.employeeId,
-        pin: currentUser.pin
-      });
-
-      if (!data.ok) {
-        setAlert('managerAlert', data.error || 'فشل تحميل طلبات الإجازة', 'error');
-        return;
-      }
-
-      setAlert('managerAlert', '', '');
-
-      const tbody = document.querySelector('#managerLeaveTable tbody');
-      tbody.innerHTML = '';
-
-      if (!data.leaves || data.leaves.length === 0) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="8">لا توجد طلبات معلّقة حالياً.</td>`;
-        tbody.appendChild(tr);
-        return;
-      }
-
-      data.leaves.forEach(req => {
-        const infoLines = [];
-        if (req.AnnualRemainingBefore !== null && req.AnnualRemainingBefore !== undefined) {
-          infoLines.push('قبل: ' + req.AnnualRemainingBefore);
-        }
-        if (req.AnnualRemainingAfter !== null && req.AnnualRemainingAfter !== undefined) {
-          infoLines.push('بعد: ' + req.AnnualRemainingAfter);
-        }
-        if (req.PolicyWarningsText) {
-          infoLines.push('⚠ ' + req.PolicyWarningsText);
-        }
-
-        let typeHtml = getLeaveTypeLabel(req.Type || '');
-        if (infoLines.length) {
-          typeHtml += '<br><small>' + infoLines.join(' | ') + '</small>';
-        }
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${req.RequestID}</td>
-          <td>${req.EmployeeID}</td>
-          <td>${req.EmployeeDepartment || ''}</td>
-          <td>${formatDate(req.StartDate)}</td>
-          <td>${formatDate(req.EndDate)}</td>
-          <td>${req.Days}</td>
-          <td>${typeHtml}</td>
-          <td>
-            <button class="btn btn-sm btn-primary" onclick="managerDecision(${req.RequestID}, 'Approved')">موافقة</button>
-            <button class="btn btn-sm btn-secondary" onclick="managerDecision(${req.RequestID}, 'Rejected')">رفض</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-    } catch (err) {
-      setAlert('managerAlert', err.message || 'خطأ غير متوقع', 'error');
-    }
-  }
-
-  async function managerDecision(requestId, status) {
-    if (!currentUser) return;
-
-    try {
-      const data = await apiCall('approveLeave', {
-        managerId: currentUser.employeeId,
-        pin: currentUser.pin,
-        requestId,
-        status,
-        comment: ''
-      });
-
-      if (!data.ok) {
-        setAlert('managerAlert', data.error || 'فشل تحديث حالة الطلب', 'error');
-        return;
-      }
-
-      setAlert('managerAlert', 'تم تحديث حالة الطلب بنجاح.', 'success');
-
-      await loadManagerLeaves();
-      await loadEmployeeDashboard();
-
-    } catch (err) {
-      setAlert('managerAlert', err.message || 'خطأ غير متوقع', 'error');
-    }
-  }
-
-  async function managerAddOvertime() {
-    if (!currentUser) return;
-
-    const empInput = document.getElementById('mgrOtEmployeeId').value.trim();
-    const date = document.getElementById('mgrOtDate').value;
-    const hours = document.getElementById('mgrOtHours').value;
-    const rate = document.getElementById('mgrOtRate').value;
-
-    if (!empInput || !date || !hours) {
-      setAlert('managerAlert', 'يرجى إدخال اسم/رقم الموظف والتاريخ وعدد الساعات', 'error');
-      return;
-    }
-
-    try {
-      const payload = {
-        managerId: currentUser.employeeId,
-        pin: currentUser.pin,
-        employeeId: empInput,
-        employeeName: empInput,
-        date,
-        hours
-      };
-      if (rate) payload.rate = rate;
-
-      const data = await apiCall('addOvertime', payload);
-
-      if (!data.ok) {
-        setAlert('managerAlert', data.error || 'فشل تسجيل الإضافي', 'error');
-        return;
-      }
-
-      setAlert('managerAlert', 'تم تسجيل الإضافي بنجاح. القيمة: ' + data.value, 'success');
-      document.getElementById('mgrOtHours').value = '';
-      document.getElementById('mgrOtRate').value = '';
-      await loadEmployeeDashboard();
-    } catch (err) {
-      setAlert('managerAlert', err.message || 'خطأ غير متوقع', 'error');
-    }
-  }
-
-async function loadAdminReport() {
-  if (!currentUser) return;
-  try {
-    const data = await apiCall('adminReport', {
-      adminId: currentUser.employeeId,
-      pin: currentUser.pin
-    });
-
-    if (!data.ok) {
-      setAlert('adminAlert', data.error || 'فشل تحميل التقرير', 'error');
-      return;
-    }
-
-    setAlert('adminAlert', '', '');
-    const s = data.summary;
-    const d = s.leaveDetails || {};
-    const div = document.getElementById('adminSummary');
-
-    div.innerHTML = `
-      <div class="stats-row">
-        <div class="stat-pill"><span>عدد الموظفين</span><strong>${s.totalEmployees}</strong></div>
-        <div class="stat-pill"><span>طلبات معلقة</span><strong>${s.leave.pending}</strong></div>
-        <div class="stat-pill"><span>طلبات مقبولة</span><strong>${s.leave.approved}</strong></div>
-        <div class="stat-pill"><span>طلبات مرفوضة</span><strong>${s.leave.rejected}</strong></div>
-      </div>
-
-      <div class="stats-row">
-        <div class="stat-pill"><span>ساعات الإضافي الإجمالية</span><strong>${s.overtime.totalHours}</strong></div>
-        <div class="stat-pill"><span>قيمة الإضافي الإجمالية</span><strong>${s.overtime.totalValue}</strong></div>
-      </div>
-
-      <div class="stats-row">
-        <div class="stat-pill"><span>مجموع أيام الإجازات المقبولة</span><strong>${d.totalApprovedDays || 0}</strong></div>
-        <div class="stat-pill"><span>سنوية مستخدمة</span><strong>${d.annualDaysUsed || 0}</strong></div>
-        <div class="stat-pill"><span>مرضية</span><strong>${d.sickDaysUsed || 0}</strong></div>
-        <div class="stat-pill"><span>استثنائية / ساعية</span><strong>${d.exceptionalDaysUsed || 0}</strong></div>
-      </div>
-
-      <div class="stats-row">
-        <div class="stat-pill"><span>زواج</span><strong>${d.marriageDaysUsed || 0}</strong></div>
-        <div class="stat-pill"><span>وفاة درجة أولى</span><strong>${d.bereavement1DaysUsed || 0}</strong></div>
-        <div class="stat-pill"><span>وفاة درجة ثانية</span><strong>${d.bereavement2DaysUsed || 0}</strong></div>
-        <div class="stat-pill"><span>أعياد / رسمية</span><strong>${d.holidayDaysUsed || 0}</strong></div>
-      </div>
-
-      <div class="stats-row">
-        <div class="stat-pill">
-          <span>عدد الموظفين برصيد سنوي سالب</span>
-          <strong>${s.employeesWithNegativeAnnual || 0}</strong>
-        </div>
-      </div>
-    `;
-  } catch (err) {
-    setAlert('adminAlert', err.message || 'خطأ غير متوقع', 'error');
-  }
-}
-
-
-  document.addEventListener('DOMContentLoaded', () => {
-    showView(false);
-    tryAutoLogin();
-
-    // إظهار/إخفاء حقل الساعات عند اختيار "إجازة ساعية"
-    const leaveTypeSelect = document.getElementById('leaveType');
-    const hourlyGroup = document.getElementById('hourlyHoursGroup');
-    if (leaveTypeSelect && hourlyGroup) {
-      leaveTypeSelect.addEventListener('change', () => {
-        if (leaveTypeSelect.value === 'Hourly') {
-          hourlyGroup.style.display = 'block';
-        } else {
-          hourlyGroup.style.display = 'none';
-        }
-      });
-    }
-  });
-</script>
-
-
+  </script>
 </body>
 </html>
