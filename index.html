@@ -571,415 +571,459 @@
     </div>
   </div>
 
-  <script>
-    // رابط الـ Web App من Google Apps Script (الذي ينتهي بـ /exec)
-const API_URL = "https://script.google.com/macros/s/AKfycbzpiS7kqGbRF50u0HSV5DyeamztF5HyYyV_GOSF-9Pfvnzz-YRG-_BmXj5CaVSGu6vX/exec";
+<script>
+  // رابط الـ Web App من Google Apps Script (الذي ينتهي بـ /exec)
+const API_URL = "https://script.google.com/macros/s/AKfycbwzpbvipn3NsJjvk-Acq-UVJuwwSk_W56_-Gh8PxB3UED3_T121lSr8UvVzxQk-V1A1/exec";
 
-    let currentUser = null;
+  let currentUser = null;
 
-    function showView(isLoggedIn) {
-      document.getElementById('loginView').classList.toggle('hidden', isLoggedIn);
-      document.getElementById('appView').classList.toggle('hidden', !isLoggedIn);
+  function showView(isLoggedIn) {
+    document.getElementById('loginView').classList.toggle('hidden', isLoggedIn);
+    document.getElementById('appView').classList.toggle('hidden', !isLoggedIn);
+  }
+
+  function setAlert(id, message, type) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!message) {
+      el.classList.add('hidden');
+      return;
     }
+    el.textContent = message;
+    el.classList.remove('hidden');
+    el.classList.remove('alert-success', 'alert-error');
+    if (type === 'success') el.classList.add('alert-success');
+    else el.classList.add('alert-error');
+  }
 
-    function setAlert(id, message, type) {
-      const el = document.getElementById(id);
-      if (!el) return;
-      if (!message) {
-        el.classList.add('hidden');
-        return;
-      }
-      el.textContent = message;
-      el.classList.remove('hidden');
-      el.classList.remove('alert-success', 'alert-error');
-      if (type === 'success') el.classList.add('alert-success');
-      else el.classList.add('alert-error');
+  // استدعاء API بدون CORS preflight
+  async function apiCall(action, payload) {
+    const body = JSON.stringify({ action, ...payload });
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: body
+    });
+    return res.json();
+  }
+
+  // حفظ بيانات الدخول في المتصفح (للدخول التلقائي بعد التحديث)
+  function saveLoginToLocalStorage(employeeId, pin) {
+    try {
+      localStorage.setItem('gstoreHRUser', JSON.stringify({ employeeId, pin }));
+    } catch (e) {
+      // لو المتصفح يمنع التخزين نتجاهل الخطأ
     }
+  }
 
-    // استدعاء API بدون CORS preflight
-    async function apiCall(action, payload) {
-      const body = JSON.stringify({ action, ...payload });
-      const res = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: body
-      });
-      return res.json();
+  function clearLoginFromLocalStorage() {
+    try {
+      localStorage.removeItem('gstoreHRUser');
+    } catch (e) {}
+  }
+
+  async function tryAutoLogin() {
+    try {
+      const saved = localStorage.getItem('gstoreHRUser');
+      if (!saved) return;
+      const u = JSON.parse(saved);
+      if (!u.employeeId || !u.pin) return;
+
+      document.getElementById('loginEmployeeId').value = u.employeeId;
+      document.getElementById('loginPin').value = u.pin;
+
+      await handleLogin(true); // true = لا نعرض رسائل خطأ في البداية
+    } catch (e) {
+      // نتجاهل أي خطأ في القراءة
     }
+  }
 
-    async function handleLogin() {
-      const empId = document.getElementById('loginEmployeeId').value.trim();
-      const pin = document.getElementById('loginPin').value.trim();
+  async function handleLogin(isAuto = false) {
+    const empId = document.getElementById('loginEmployeeId').value.trim();
+    const pin = document.getElementById('loginPin').value.trim();
 
-      if (!empId || !pin) {
+    if (!empId || !pin) {
+      if (!isAuto) {
         setAlert('loginAlert', 'يرجى إدخال رقم الموظف والرمز السري', 'error');
+      }
+      return;
+    }
+
+    try {
+      setAlert('loginAlert', '', '');
+      const data = await apiCall('login', { employeeId: empId, pin });
+
+      if (!data.ok) {
+        if (!isAuto) {
+          setAlert('loginAlert', data.error || 'فشل تسجيل الدخول', 'error');
+        }
         return;
       }
 
-      try {
-        setAlert('loginAlert', '', '');
-        const data = await apiCall('login', { employeeId: empId, pin });
+      currentUser = {
+        employeeId: data.employee.EmployeeID,
+        pin: pin,
+        name: data.employee.Name,
+        dept: data.employee.Department,
+        role: data.employee.Role
+      };
 
-        if (!data.ok) {
-          setAlert('loginAlert', data.error || 'فشل تسجيل الدخول', 'error');
-          return;
-        }
+      // حفظ بيانات الدخول للدخول التلقائي بعد التحديث/إعادة فتح الصفحة
+      saveLoginToLocalStorage(currentUser.employeeId, currentUser.pin);
 
-        currentUser = {
-          employeeId: data.employee.EmployeeID,
-          pin: pin,
-          name: data.employee.Name,
-          dept: data.employee.Department,
-          role: data.employee.Role
-        };
+      document.getElementById('headerUserInfo').textContent =
+        currentUser.name + " – " + currentUser.employeeId + " (" + currentUser.role + ")";
 
-        document.getElementById('headerUserInfo').textContent =
-          currentUser.name + " – " + currentUser.employeeId + " (" + currentUser.role + ")";
+      document.getElementById('employeeNameBadge').textContent =
+        currentUser.name + " – " + currentUser.employeeId;
 
-        document.getElementById('employeeNameBadge').textContent =
-          currentUser.name + " – " + currentUser.employeeId;
+      const mgrTab = document.getElementById('managerTab');
+      const adminTab = document.getElementById('adminTab');
+      if (currentUser.role === 'Manager' || currentUser.role === 'Admin') {
+        mgrTab.classList.remove('hidden');
+      } else {
+        mgrTab.classList.add('hidden');
+      }
+      if (currentUser.role === 'Admin') {
+        adminTab.classList.remove('hidden');
+      } else {
+        adminTab.classList.add('hidden');
+      }
 
-        const mgrTab = document.getElementById('managerTab');
-        const adminTab = document.getElementById('adminTab');
-        if (currentUser.role === 'Manager' || currentUser.role === 'Admin') {
-          mgrTab.classList.remove('hidden');
-        } else {
-          mgrTab.classList.add('hidden');
-        }
-        if (currentUser.role === 'Admin') {
-          adminTab.classList.remove('hidden');
-        } else {
-          adminTab.classList.add('hidden');
-        }
+      showView(true);
+      initTabs();
+      await loadEmployeeDashboard();
 
-        showView(true);
-        initTabs();
-        await loadEmployeeDashboard();
+      if (currentUser.role === 'Manager' || currentUser.role === 'Admin') {
+        loadManagerLeaves();
+      }
 
-        if (currentUser.role === 'Manager' || currentUser.role === 'Admin') {
-          loadManagerLeaves();
-        }
-
-      } catch (err) {
+    } catch (err) {
+      if (!isAuto) {
         setAlert('loginAlert', err.message || 'خطأ غير متوقع', 'error');
       }
     }
+  }
 
-    function logout() {
-      currentUser = null;
-      document.getElementById('loginEmployeeId').value = "";
-      document.getElementById('loginPin').value = "";
-      showView(false);
-    }
+  function logout() {
+    currentUser = null;
+    clearLoginFromLocalStorage();
+    document.getElementById('loginEmployeeId').value = "";
+    document.getElementById('loginPin').value = "";
+    showView(false);
+  }
 
-    function initTabs() {
-      const tabs = document.querySelectorAll('.tab');
-      tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-          tabs.forEach(t => t.classList.remove('active'));
-          tab.classList.add('active');
+  function initTabs() {
+    const tabs = document.querySelectorAll('.tab');
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
 
-          const target = tab.getAttribute('data-target');
-          ['employeePanel','managerPanel','adminPanel'].forEach(id => {
-            document.getElementById(id).classList.add('hidden');
-          });
-          if (target) {
-            document.getElementById(target).classList.remove('hidden');
-          }
-
-          if (target === 'managerPanel' && currentUser &&
-              (currentUser.role === 'Manager' || currentUser.role === 'Admin')) {
-            loadManagerLeaves();
-          }
+        const target = tab.getAttribute('data-target');
+        ['employeePanel','managerPanel','adminPanel'].forEach(id => {
+          document.getElementById(id).classList.add('hidden');
         });
-      });
-    }
-
-    async function loadEmployeeDashboard() {
-      if (!currentUser) return;
-      try {
-        setAlert('employeeAlert', '', '');
-        const data = await apiCall('getDashboard', {
-          employeeId: currentUser.employeeId,
-          pin: currentUser.pin
-        });
-
-        if (!data.ok) {
-          setAlert('employeeAlert', data.error || 'خطأ في تحميل البيانات', 'error');
-          return;
+        if (target) {
+          document.getElementById(target).classList.remove('hidden');
         }
 
-        const lb = data.leaveBalance || { annual: 0, used: 0, remaining: 0 };
-        const statsRow = document.getElementById('leaveStatsRow');
-        statsRow.innerHTML = `
-          <div class="stat-pill"><span>سنوية مستحقة</span><strong>${lb.annual}</strong></div>
-          <div class="stat-pill"><span>مستخدم من السنوية</span><strong>${lb.used}</strong></div>
-          <div class="stat-pill"><span>متبقي سنوية</span><strong>${lb.remaining}</strong></div>
-
-          <div class="stat-pill"><span>مرضية مستخدمة</span><strong>${lb.sickUsed || 0}/${lb.sickLimitTotal || 10}</strong></div>
-          <div class="stat-pill"><span>مرضية مجانية</span><strong>${lb.sickFree || 0}/${lb.sickLimitFree || 7}</strong></div>
-          <div class="stat-pill"><span>مرضية من السنوية</span><strong>${lb.sickFromAnnual || 0}</strong></div>
-
-          <div class="stat-pill"><span>استثنائية مستخدمة</span><strong>${lb.exceptionalUsed || 0}</strong></div>
-          <div class="stat-pill"><span>استثنائية مجانية</span><strong>${lb.exceptionalFree || 0}</strong></div>
-          <div class="stat-pill"><span>استثنائية من السنوية</span><strong>${lb.exceptionalFromAnnual || 0}</strong></div>
-        `;
-
-        const leaveTbody = document.querySelector('#leaveTable tbody');
-        leaveTbody.innerHTML = '';
-        (data.leaves || []).forEach(req => {
-          const tr = document.createElement('tr');
-          const statusClass =
-            req.Status === 'Approved'
-              ? 'status-approved'
-              : req.Status === 'Rejected'
-              ? 'status-rejected'
-              : 'status-pending';
-
-          tr.innerHTML = `
-            <td>${req.RequestID}</td>
-            <td>${formatDate(req.StartDate)}</td>
-            <td>${formatDate(req.EndDate)}</td>
-            <td>${req.Days}</td>
-            <td>${req.Type || ''}</td>
-            <td><span class="status-badge ${statusClass}">${req.Status}</span></td>
-          `;
-          leaveTbody.appendChild(tr);
-        });
-
-        const otStatsRow = document.getElementById('otStatsRow');
-        otStatsRow.innerHTML = `
-          <div class="stat-pill"><span>إجمالي الساعات</span><strong>${data.overtime.totalHours || 0}</strong></div>
-          <div class="stat-pill"><span>إجمالي القيمة</span><strong>${data.overtime.totalValue || 0}</strong></div>
-        `;
-
-        const otTbody = document.querySelector('#otTable tbody');
-        otTbody.innerHTML = '';
-        (data.overtime.records || []).forEach(rec => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${rec.OTID}</td>
-            <td>${formatDate(rec.Date)}</td>
-            <td>${rec.Hours}</td>
-            <td>${rec.Rate}</td>
-            <td>${rec.Value}</td>
-          `;
-          otTbody.appendChild(tr);
-        });
-
-      } catch (err) {
-        setAlert('employeeAlert', err.message || 'خطأ غير متوقع', 'error');
-      }
-    }
-
-    function formatDate(value) {
-      if (!value) return '';
-      const d = new Date(value);
-      if (isNaN(d)) return String(value).split('T')[0] || String(value);
-      return d.toISOString().split('T')[0];
-    }
-
-    async function submitLeave() {
-      if (!currentUser) return;
-
-      const startDate = document.getElementById('leaveStartDate').value;
-      const endDate = document.getElementById('leaveEndDate').value;
-      const type = document.getElementById('leaveType').value;
-      const comment = document.getElementById('leaveComment').value;
-
-      if (!startDate || !endDate) {
-        setAlert('employeeAlert', 'يرجى اختيار تاريخ البداية والنهاية', 'error');
-        return;
-      }
-
-      try {
-        const data = await apiCall('submitLeave', {
-          employeeId: currentUser.employeeId,
-          pin: currentUser.pin,
-          startDate,
-          endDate,
-          type,
-          comment
-        });
-
-        if (!data.ok) {
-          setAlert('employeeAlert', data.error || 'فشل إرسال طلب الإجازة', 'error');
-          return;
-        }
-
-        setAlert('employeeAlert', 'تم إرسال طلب الإجازة بنجاح (رقم الطلب: ' + data.requestId + ')', 'success');
-        document.getElementById('leaveComment').value = '';
-        await loadEmployeeDashboard();
-
-        if (currentUser.role === 'Manager' || currentUser.role === 'Admin') {
+        if (target === 'managerPanel' && currentUser &&
+            (currentUser.role === 'Manager' || currentUser.role === 'Admin')) {
           loadManagerLeaves();
         }
-      } catch (err) {
-        setAlert('employeeAlert', err.message || 'خطأ غير متوقع', 'error');
-      }
-    }
+      });
+    });
+  }
 
-    async function loadManagerLeaves() {
-      if (!currentUser) return;
+  async function loadEmployeeDashboard() {
+    if (!currentUser) return;
+    try {
+      setAlert('employeeAlert', '', '');
+      const data = await apiCall('getDashboard', {
+        employeeId: currentUser.employeeId,
+        pin: currentUser.pin
+      });
 
-      try {
-        const data = await apiCall('getManagerLeaves', {
-          managerId: currentUser.employeeId,
-          pin: currentUser.pin
-        });
-
-        if (!data.ok) {
-          setAlert('managerAlert', data.error || 'فشل تحميل طلبات الإجازة', 'error');
-          return;
-        }
-
-        setAlert('managerAlert', '', '');
-
-        const tbody = document.querySelector('#managerLeaveTable tbody');
-        tbody.innerHTML = '';
-
-        if (!data.leaves || data.leaves.length === 0) {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `<td colspan="10">لا توجد طلبات معلّقة حالياً.</td>`;
-          tbody.appendChild(tr);
-          return;
-        }
-
-        data.leaves.forEach(req => {
-          const tr = document.createElement('tr');
-          const before = (req.AnnualRemainingBefore !== null && req.AnnualRemainingBefore !== undefined)
-            ? req.AnnualRemainingBefore
-            : '';
-          const after = (req.AnnualRemainingAfter !== null && req.AnnualRemainingAfter !== undefined)
-            ? req.AnnualRemainingAfter
-            : '';
-
-          tr.innerHTML = `
-            <td>${req.RequestID}</td>
-            <td>${req.EmployeeID}</td>
-            <td>${req.EmployeeDepartment || ''}</td>
-            <td>${formatDate(req.StartDate)}</td>
-            <td>${formatDate(req.EndDate)}</td>
-            <td>${req.Days}</td>
-            <td>${req.Type || ''}</td>
-            <td>${before}</td>
-            <td>${after}</td>
-            <td>
-              <button class="btn btn-sm btn-primary" onclick="managerDecision(${req.RequestID}, 'Approved')">موافقة</button>
-              <button class="btn btn-sm btn-secondary" onclick="managerDecision(${req.RequestID}, 'Rejected')">رفض</button>
-            </td>
-          `;
-          tbody.appendChild(tr);
-        });
-
-      } catch (err) {
-        setAlert('managerAlert', err.message || 'خطأ غير متوقع', 'error');
-      }
-    }
-
-    async function managerDecision(requestId, status) {
-      if (!currentUser) return;
-
-      try {
-        const data = await apiCall('approveLeave', {
-          managerId: currentUser.employeeId,
-          pin: currentUser.pin,
-          requestId,
-          status,
-          comment: ''
-        });
-
-        if (!data.ok) {
-          setAlert('managerAlert', data.error || 'فشل تحديث حالة الطلب', 'error');
-          return;
-        }
-
-        setAlert('managerAlert', 'تم تحديث حالة الطلب بنجاح.', 'success');
-
-        await loadManagerLeaves();
-        await loadEmployeeDashboard();
-
-      } catch (err) {
-        setAlert('managerAlert', err.message || 'خطأ غير متوقع', 'error');
-      }
-    }
-
-    async function managerAddOvertime() {
-      if (!currentUser) return;
-
-      const empInput = document.getElementById('mgrOtEmployeeId').value.trim();
-      const date = document.getElementById('mgrOtDate').value;
-      const hours = document.getElementById('mgrOtHours').value;
-      const rate = document.getElementById('mgrOtRate').value;
-
-      if (!empInput || !date || !hours) {
-        setAlert('managerAlert', 'يرجى إدخال اسم/رقم الموظف والتاريخ وعدد الساعات', 'error');
+      if (!data.ok) {
+        setAlert('employeeAlert', data.error || 'خطأ في تحميل البيانات', 'error');
         return;
       }
 
-      try {
-        const payload = {
-          managerId: currentUser.employeeId,
-          pin: currentUser.pin,
-          employeeId: empInput,
-          employeeName: empInput,
-          date,
-          hours
-        };
-        if (rate) payload.rate = rate;
+      const lb = data.leaveBalance || { annual: 0, used: 0, remaining: 0 };
+      const statsRow = document.getElementById('leaveStatsRow');
+      statsRow.innerHTML = `
+        <div class="stat-pill"><span>سنوية مستحقة</span><strong>${lb.annual}</strong></div>
+        <div class="stat-pill"><span>مستخدم من السنوية</span><strong>${lb.used}</strong></div>
+        <div class="stat-pill"><span>متبقي سنوية</span><strong>${lb.remaining}</strong></div>
 
-        const data = await apiCall('addOvertime', payload);
+        <div class="stat-pill"><span>مرضية مستخدمة</span><strong>${lb.sickUsed || 0}/${lb.sickLimitTotal || 10}</strong></div>
+        <div class="stat-pill"><span>مرضية مجانية</span><strong>${lb.sickFree || 0}/${lb.sickLimitFree || 7}</strong></div>
+        <div class="stat-pill"><span>مرضية من السنوية</span><strong>${lb.sickFromAnnual || 0}</strong></div>
 
-        if (!data.ok) {
-          setAlert('managerAlert', data.error || 'فشل تسجيل الإضافي', 'error');
-          return;
-        }
+        <div class="stat-pill"><span>استثنائية مستخدمة</span><strong>${lb.exceptionalUsed || 0}</strong></div>
+        <div class="stat-pill"><span>استثنائية مجانية</span><strong>${lb.exceptionalFree || 0}</strong></div>
+        <div class="stat-pill"><span>استثنائية من السنوية</span><strong>${lb.exceptionalFromAnnual || 0}</strong></div>
+      `;
 
-        setAlert('managerAlert', 'تم تسجيل الإضافي بنجاح. القيمة: ' + data.value, 'success');
-        document.getElementById('mgrOtHours').value = '';
-        document.getElementById('mgrOtRate').value = '';
-        await loadEmployeeDashboard();
-      } catch (err) {
-        setAlert('managerAlert', err.message || 'خطأ غير متوقع', 'error');
-      }
-    }
+      const leaveTbody = document.querySelector('#leaveTable tbody');
+      leaveTbody.innerHTML = '';
+      (data.leaves || []).forEach(req => {
+        const tr = document.createElement('tr');
+        const statusClass =
+          req.Status === 'Approved'
+            ? 'status-approved'
+            : req.Status === 'Rejected'
+            ? 'status-rejected'
+            : 'status-pending';
 
-    async function loadAdminReport() {
-      if (!currentUser) return;
-      try {
-        const data = await apiCall('adminReport', {
-          adminId: currentUser.employeeId,
-          pin: currentUser.pin
-        });
-
-        if (!data.ok) {
-          setAlert('adminAlert', data.error || 'فشل تحميل التقرير', 'error');
-          return;
-        }
-
-        setAlert('adminAlert', '', '');
-        const s = data.summary;
-        const div = document.getElementById('adminSummary');
-        div.innerHTML = `
-          <div class="stats-row">
-            <div class="stat-pill"><span>عدد الموظفين</span><strong>${s.totalEmployees}</strong></div>
-            <div class="stat-pill"><span>طلبات معلقة</span><strong>${s.leave.pending}</strong></div>
-            <div class="stat-pill"><span>طلبات مقبولة</span><strong>${s.leave.approved}</strong></div>
-            <div class="stat-pill"><span>طلبات مرفوضة</span><strong>${s.leave.rejected}</strong></div>
-          </div>
-          <div class="stats-row">
-            <div class="stat-pill"><span>ساعات الإضافي الإجمالية</span><strong>${s.overtime.totalHours}</strong></div>
-            <div class="stat-pill"><span>قيمة الإضافي الإجمالية</span><strong>${s.overtime.totalValue}</strong></div>
-          </div>
+        tr.innerHTML = `
+          <td>${req.RequestID}</td>
+          <td>${formatDate(req.StartDate)}</td>
+          <td>${formatDate(req.EndDate)}</td>
+          <td>${req.Days}</td>
+          <td>${req.Type || ''}</td>
+          <td><span class="status-badge ${statusClass}">${req.Status}</span></td>
         `;
-      } catch (err) {
-        setAlert('adminAlert', err.message || 'خطأ غير متوقع', 'error');
-      }
+        leaveTbody.appendChild(tr);
+      });
+
+      const otStatsRow = document.getElementById('otStatsRow');
+      otStatsRow.innerHTML = `
+        <div class="stat-pill"><span>إجمالي الساعات</span><strong>${data.overtime.totalHours || 0}</strong></div>
+        <div class="stat-pill"><span>إجمالي القيمة</span><strong>${data.overtime.totalValue || 0}</strong></div>
+      `;
+
+      const otTbody = document.querySelector('#otTable tbody');
+      otTbody.innerHTML = '';
+      (data.overtime.records || []).forEach(rec => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${rec.OTID}</td>
+          <td>${formatDate(rec.Date)}</td>
+          <td>${rec.Hours}</td>
+          <td>${rec.Rate}</td>
+          <td>${rec.Value}</td>
+        `;
+        otTbody.appendChild(tr);
+      });
+
+    } catch (err) {
+      setAlert('employeeAlert', err.message || 'خطأ غير متوقع', 'error');
+    }
+  }
+
+  function formatDate(value) {
+    if (!value) return '';
+    const d = new Date(value);
+    if (isNaN(d)) return String(value).split('T')[0] || String(value);
+    return d.toISOString().split('T')[0];
+  }
+
+  async function submitLeave() {
+    if (!currentUser) return;
+
+    const startDate = document.getElementById('leaveStartDate').value;
+    const endDate = document.getElementById('leaveEndDate').value;
+    const type = document.getElementById('leaveType').value;
+    const comment = document.getElementById('leaveComment').value;
+
+    if (!startDate || !endDate) {
+      setAlert('employeeAlert', 'يرجى اختيار تاريخ البداية والنهاية', 'error');
+      return;
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      showView(false);
-    });
-  </script>
+    try {
+      const data = await apiCall('submitLeave', {
+        employeeId: currentUser.employeeId,
+        pin: currentUser.pin,
+        startDate,
+        endDate,
+        type,
+        comment
+      });
+
+      if (!data.ok) {
+        setAlert('employeeAlert', data.error || 'فشل إرسال طلب الإجازة', 'error');
+        return;
+      }
+
+      setAlert('employeeAlert', 'تم إرسال طلب الإجازة بنجاح (رقم الطلب: ' + data.requestId + ')', 'success');
+      document.getElementById('leaveComment').value = '';
+      await loadEmployeeDashboard();
+
+      if (currentUser.role === 'Manager' || currentUser.role === 'Admin') {
+        loadManagerLeaves();
+      }
+    } catch (err) {
+      setAlert('employeeAlert', err.message || 'خطأ غير متوقع', 'error');
+    }
+  }
+
+  async function loadManagerLeaves() {
+    if (!currentUser) return;
+
+    try {
+      const data = await apiCall('getManagerLeaves', {
+        managerId: currentUser.employeeId,
+        pin: currentUser.pin
+      });
+
+      if (!data.ok) {
+        setAlert('managerAlert', data.error || 'فشل تحميل طلبات الإجازة', 'error');
+        return;
+      }
+
+      setAlert('managerAlert', '', '');
+
+      const tbody = document.querySelector('#managerLeaveTable tbody');
+      tbody.innerHTML = '';
+
+      if (!data.leaves || data.leaves.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="10">لا توجد طلبات معلّقة حالياً.</td>`;
+        tbody.appendChild(tr);
+        return;
+      }
+
+      data.leaves.forEach(req => {
+        const tr = document.createElement('tr');
+        const before = (req.AnnualRemainingBefore !== null && req.AnnualRemainingBefore !== undefined)
+          ? req.AnnualRemainingBefore
+          : '';
+        const after = (req.AnnualRemainingAfter !== null && req.AnnualRemainingAfter !== undefined)
+          ? req.AnnualRemainingAfter
+          : '';
+
+        tr.innerHTML = `
+          <td>${req.RequestID}</td>
+          <td>${req.EmployeeID}</td>
+          <td>${req.EmployeeDepartment || ''}</td>
+          <td>${formatDate(req.StartDate)}</td>
+          <td>${formatDate(req.EndDate)}</td>
+          <td>${req.Days}</td>
+          <td>${req.Type || ''}</td>
+          <td>${before}</td>
+          <td>${after}</td>
+          <td>
+            <button class="btn btn-sm btn-primary" onclick="managerDecision(${req.RequestID}, 'Approved')">موافقة</button>
+            <button class="btn btn-sm btn-secondary" onclick="managerDecision(${req.RequestID}, 'Rejected')">رفض</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+    } catch (err) {
+      setAlert('managerAlert', err.message || 'خطأ غير متوقع', 'error');
+    }
+  }
+
+  async function managerDecision(requestId, status) {
+    if (!currentUser) return;
+
+    try {
+      const data = await apiCall('approveLeave', {
+        managerId: currentUser.employeeId,
+        pin: currentUser.pin,
+        requestId,
+        status,
+        comment: ''
+      });
+
+      if (!data.ok) {
+        setAlert('managerAlert', data.error || 'فشل تحديث حالة الطلب', 'error');
+        return;
+      }
+
+      setAlert('managerAlert', 'تم تحديث حالة الطلب بنجاح.', 'success');
+
+      await loadManagerLeaves();
+      await loadEmployeeDashboard();
+
+    } catch (err) {
+      setAlert('managerAlert', err.message || 'خطأ غير متوقع', 'error');
+    }
+  }
+
+  async function managerAddOvertime() {
+    if (!currentUser) return;
+
+    const empInput = document.getElementById('mgrOtEmployeeId').value.trim();
+    const date = document.getElementById('mgrOtDate').value;
+    const hours = document.getElementById('mgrOtHours').value;
+    const rate = document.getElementById('mgrOtRate').value;
+
+    if (!empInput || !date || !hours) {
+      setAlert('managerAlert', 'يرجى إدخال اسم/رقم الموظف والتاريخ وعدد الساعات', 'error');
+      return;
+    }
+
+    try {
+      const payload = {
+        managerId: currentUser.employeeId,
+        pin: currentUser.pin,
+        employeeId: empInput,
+        employeeName: empInput,
+        date,
+        hours
+      };
+      if (rate) payload.rate = rate;
+
+      const data = await apiCall('addOvertime', payload);
+
+      if (!data.ok) {
+        setAlert('managerAlert', data.error || 'فشل تسجيل الإضافي', 'error');
+        return;
+      }
+
+      setAlert('managerAlert', 'تم تسجيل الإضافي بنجاح. القيمة: ' + data.value, 'success');
+      document.getElementById('mgrOtHours').value = '';
+      document.getElementById('mgrOtRate').value = '';
+      await loadEmployeeDashboard();
+    } catch (err) {
+      setAlert('managerAlert', err.message || 'خطأ غير متوقع', 'error');
+    }
+  }
+
+  async function loadAdminReport() {
+    if (!currentUser) return;
+    try {
+      const data = await apiCall('adminReport', {
+        adminId: currentUser.employeeId,
+        pin: currentUser.pin
+      });
+
+      if (!data.ok) {
+        setAlert('adminAlert', data.error || 'فشل تحميل التقرير', 'error');
+        return;
+      }
+
+      setAlert('adminAlert', '', '');
+      const s = data.summary;
+      const div = document.getElementById('adminSummary');
+      div.innerHTML = `
+        <div class="stats-row">
+          <div class="stat-pill"><span>عدد الموظفين</span><strong>${s.totalEmployees}</strong></div>
+          <div class="stat-pill"><span>طلبات معلقة</span><strong>${s.leave.pending}</strong></div>
+          <div class="stat-pill"><span>طلبات مقبولة</span><strong>${s.leave.approved}</strong></div>
+          <div class="stat-pill"><span>طلبات مرفوضة</span><strong>${s.leave.rejected}</strong></div>
+        </div>
+        <div class="stats-row">
+          <div class="stat-pill"><span>ساعات الإضافي الإجمالية</span><strong>${s.overtime.totalHours}</strong></div>
+          <div class="stat-pill"><span>قيمة الإضافي الإجمالية</span><strong>${s.overtime.totalValue}</strong></div>
+        </div>
+      `;
+    } catch (err) {
+      setAlert('adminAlert', err.message || 'خطأ غير متوقع', 'error');
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    showView(false);
+    // نحاول تسجيل الدخول تلقائياً إن وجد بيانات محفوظة
+    tryAutoLogin();
+  });
+</script>
+
 </body>
 </html>
