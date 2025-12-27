@@ -578,7 +578,7 @@
   </div>
 <script>
   // رابط الـ Web App من Google Apps Script
-const API_URL = "https://script.google.com/macros/s/AKfycbxbtQRZUbt3nwPApR6OZFKq4VRO7DKCCH56BV7zmfX3pJDu6hKNHvyzi2KZo1lFFWaJ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxcyUnjPVlfDTOeb6Jvsl3Gmy6n_gu9ut0M0GIVBWhSpM96744f3p7LuhfmXpq1YjQs/exec";
 
   let currentUser = null;
 
@@ -1023,38 +1023,63 @@ const API_URL = "https://script.google.com/macros/s/AKfycbxbtQRZUbt3nwPApR6OZFKq
     }
   }
 
-  async function loadAdminReport() {
-    if (!currentUser) return;
-    try {
-      const data = await apiCall('adminReport', {
-        adminId: currentUser.employeeId,
-        pin: currentUser.pin
-      });
+async function loadAdminReport() {
+  if (!currentUser) return;
+  try {
+    const data = await apiCall('adminReport', {
+      adminId: currentUser.employeeId,
+      pin: currentUser.pin
+    });
 
-      if (!data.ok) {
-        setAlert('adminAlert', data.error || 'فشل تحميل التقرير', 'error');
-        return;
-      }
-
-      setAlert('adminAlert', '', '');
-      const s = data.summary;
-      const div = document.getElementById('adminSummary');
-      div.innerHTML = `
-        <div class="stats-row">
-          <div class="stat-pill"><span>عدد الموظفين</span><strong>${s.totalEmployees}</strong></div>
-          <div class="stat-pill"><span>طلبات معلقة</span><strong>${s.leave.pending}</strong></div>
-          <div class="stat-pill"><span>طلبات مقبولة</span><strong>${s.leave.approved}</strong></div>
-          <div class="stat-pill"><span>طلبات مرفوضة</span><strong>${s.leave.rejected}</strong></div>
-        </div>
-        <div class="stats-row">
-          <div class="stat-pill"><span>ساعات الإضافي الإجمالية</span><strong>${s.overtime.totalHours}</strong></div>
-          <div class="stat-pill"><span>قيمة الإضافي الإجمالية</span><strong>${s.overtime.totalValue}</strong></div>
-        </div>
-      `;
-    } catch (err) {
-      setAlert('adminAlert', err.message || 'خطأ غير متوقع', 'error');
+    if (!data.ok) {
+      setAlert('adminAlert', data.error || 'فشل تحميل التقرير', 'error');
+      return;
     }
+
+    setAlert('adminAlert', '', '');
+    const s = data.summary;
+    const d = s.leaveDetails || {};
+    const div = document.getElementById('adminSummary');
+
+    div.innerHTML = `
+      <div class="stats-row">
+        <div class="stat-pill"><span>عدد الموظفين</span><strong>${s.totalEmployees}</strong></div>
+        <div class="stat-pill"><span>طلبات معلقة</span><strong>${s.leave.pending}</strong></div>
+        <div class="stat-pill"><span>طلبات مقبولة</span><strong>${s.leave.approved}</strong></div>
+        <div class="stat-pill"><span>طلبات مرفوضة</span><strong>${s.leave.rejected}</strong></div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-pill"><span>ساعات الإضافي الإجمالية</span><strong>${s.overtime.totalHours}</strong></div>
+        <div class="stat-pill"><span>قيمة الإضافي الإجمالية</span><strong>${s.overtime.totalValue}</strong></div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-pill"><span>مجموع أيام الإجازات المقبولة</span><strong>${d.totalApprovedDays || 0}</strong></div>
+        <div class="stat-pill"><span>سنوية مستخدمة</span><strong>${d.annualDaysUsed || 0}</strong></div>
+        <div class="stat-pill"><span>مرضية</span><strong>${d.sickDaysUsed || 0}</strong></div>
+        <div class="stat-pill"><span>استثنائية / ساعية</span><strong>${d.exceptionalDaysUsed || 0}</strong></div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-pill"><span>زواج</span><strong>${d.marriageDaysUsed || 0}</strong></div>
+        <div class="stat-pill"><span>وفاة درجة أولى</span><strong>${d.bereavement1DaysUsed || 0}</strong></div>
+        <div class="stat-pill"><span>وفاة درجة ثانية</span><strong>${d.bereavement2DaysUsed || 0}</strong></div>
+        <div class="stat-pill"><span>أعياد / رسمية</span><strong>${d.holidayDaysUsed || 0}</strong></div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-pill">
+          <span>عدد الموظفين برصيد سنوي سالب</span>
+          <strong>${s.employeesWithNegativeAnnual || 0}</strong>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    setAlert('adminAlert', err.message || 'خطأ غير متوقع', 'error');
   }
+}
+
 
   document.addEventListener('DOMContentLoaded', () => {
     showView(false);
