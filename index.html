@@ -570,8 +570,8 @@
   </div>
 
   <script>
-    // 🔗 ضع هنا رابط الـ Web App من Google Apps Script
-const API_URL = "https://script.google.com/macros/s/AKfycbxjv0i7hGGSd__3KE_ImzC0EDUu6Z5m9vXFdkWwxaGC9Rvc0P5miTrxfrDUT0lbJS-T/exec";
+    // 🔗 ضع هنا رابط الـ Web App من Google Apps Script (الذي ينتهي بـ /exec)
+    const API_URL = "https://script.google.com/macros/s/AKfycbzB5c44f4j_GidCDRtQkEhbxNql0hKCbBnhk0pgTlG_OTVPjtIuN0DIGUn8YX2K3rrc/exec";
 
     let currentUser = null;
 
@@ -594,11 +594,12 @@ const API_URL = "https://script.google.com/macros/s/AKfycbxjv0i7hGGSd__3KE_ImzC0
       else el.classList.add('alert-error');
     }
 
+    // ⚠️ مهم: استخدام text/plain لتفادي CORS (no preflight)
     async function apiCall(action, payload) {
       const body = JSON.stringify({ action, ...payload });
       const res = await fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
         body
       });
       return res.json();
@@ -653,7 +654,6 @@ const API_URL = "https://script.google.com/macros/s/AKfycbxjv0i7hGGSd__3KE_ImzC0
         initTabs();
         await loadEmployeeDashboard();
 
-        // لو هو مدير، حمّل طلبات القسم مباشرة
         if (currentUser.role === 'Manager' || currentUser.role === 'Admin') {
           loadManagerLeaves();
         }
