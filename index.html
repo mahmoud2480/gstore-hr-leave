@@ -529,7 +529,7 @@
           </div>
         </div>
 
-        <div class="card" style="background:#f9fafb;">
+        <div class="card" style="background:#f9fafb;margin-bottom:14px;">
           <h3 class="card-title" style="font-size:0.9rem;">تسجيل إضافي لموظف في القسم</h3>
           <div class="input-group">
             <label>الموظف</label>
@@ -552,6 +552,40 @@
           <button class="btn btn-primary btn-sm" onclick="managerAddOvertime()">
             تسجيل الإضافي
           </button>
+        </div>
+
+        <!-- تقرير الإضافي لرئيس القسم -->
+        <div class="card" style="background:#f9fafb;">
+          <h3 class="card-title" style="font-size:0.9rem;">تقرير الإضافي لقسمك</h3>
+
+          <div class="stats-row" style="margin-bottom:10px;">
+            <div class="input-group" style="flex:1 1 160px;">
+              <label>شهر الإضافي</label>
+              <input type="month" id="mgrOtMonthFilter" />
+            </div>
+            <div class="stats-row" id="managerOtStatsRow" style="flex:3 1 200px;"></div>
+          </div>
+
+          <button class="btn btn-secondary btn-sm" onclick="loadManagerOvertime()">
+            🔄 تحديث تقرير الإضافي
+          </button>
+
+          <div class="table-wrapper" style="margin-top:8px;">
+            <table id="managerOtTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>الموظف</th>
+                  <th>القسم</th>
+                  <th>التاريخ</th>
+                  <th>الساعات</th>
+                  <th>سعر الساعة</th>
+                  <th>القيمة</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -609,6 +643,10 @@
               <label>الموظف (بحث)</label>
               <input type="text" id="adminFilterEmployee" placeholder="اسم أو رقم الموظف" />
             </div>
+            <div class="input-group" style="flex:1 1 150px;">
+              <label>شهر الإضافي</label>
+              <input type="month" id="adminFilterOtMonth" />
+            </div>
           </div>
 
           <div class="tabs" id="adminDetailTabs">
@@ -658,6 +696,7 @@
 
           <!-- جدول الإضافي -->
           <div id="adminOTTableWrapper" class="hidden">
+            <div class="stats-row" id="adminOtStatsRow" style="margin-bottom:8px;"></div>
             <table id="adminOTTable">
               <thead>
                 <tr>
@@ -681,8 +720,8 @@
   </div>
 
   <script>
-    // 🔗 رابط الـ Web App من Google Apps Script (ينتهي بـ /exec)
-    const API_URL = "https://script.google.com/macros/s/AKfycbw8aJqPppi_mvUkdQwj9ZBj35oiW4IND1tlQ-Vj5H92ElZf70dv8PXL3jzOLGap4-g/exec";
+    // 🔗 رابط الـ Web App من Google Apps Script
+    const API_URL = "https://script.google.com/macros/s/AKfycby7ZfnxO2-7q3AilvIQs8BDRhFUdxKJt3jmIEns6P1fToZjYCVAT0iab79mrCpWRjlx/exec";
 
     let currentUser = null;
     let adminDataCache = {
@@ -690,6 +729,7 @@
       leaves: [],
       overtime: []
     };
+    let managerOtCache = [];
 
     function showView(isLoggedIn) {
       document.getElementById('loginView').classList.toggle('hidden', isLoggedIn);
@@ -771,6 +811,7 @@
 
         if (currentUser.role === 'Manager' || currentUser.role === 'Admin') {
           await loadManagerLeaves();
+          await loadManagerOvertime();
         }
 
         if (currentUser.role === 'Admin') {
@@ -790,7 +831,6 @@
     }
 
     function initTabs() {
-      // Tabs الرئيسية (موظف / رئيس قسم / إدارة)
       const mainTabs = document.querySelectorAll('#mainTabs .tab');
       mainTabs.forEach(tab => {
         tab.addEventListener('click', () => {
@@ -808,6 +848,7 @@
           if (target === 'managerPanel' && currentUser &&
               (currentUser.role === 'Manager' || currentUser.role === 'Admin')) {
             loadManagerLeaves();
+            loadManagerOvertime();
           }
           if (target === 'adminPanel' && currentUser && currentUser.role === 'Admin') {
             loadAdminReport();
@@ -815,9 +856,9 @@
         });
       });
 
-      // Tabs داخل لوحة الإدارة (الموظفون / الإجازات / الإضافي)
       initAdminDetailTabs();
       setupAdminFilters();
+      setupManagerFilters();
     }
 
     function initAdminDetailTabs() {
@@ -839,7 +880,7 @@
     }
 
     function setupAdminFilters() {
-      const ids = ['adminFilterDept','adminFilterLeaveType','adminFilterLeaveStatus'];
+      const ids = ['adminFilterDept','adminFilterLeaveType','adminFilterLeaveStatus','adminFilterOtMonth'];
       ids.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -849,6 +890,13 @@
       const empInput = document.getElementById('adminFilterEmployee');
       if (empInput) {
         empInput.addEventListener('input', applyAdminFiltersAndRender);
+      }
+    }
+
+    function setupManagerFilters() {
+      const monthInput = document.getElementById('mgrOtMonthFilter');
+      if (monthInput) {
+        monthInput.addEventListener('change', applyManagerOtFilterAndRender);
       }
     }
 
@@ -932,6 +980,14 @@
       return d.toISOString().split('T')[0];
     }
 
+    function sameYearMonth(dateValue, ymStr) {
+      if (!ymStr) return true;
+      const d = new Date(dateValue);
+      if (isNaN(d)) return false;
+      const [y, m] = ymStr.split('-').map(Number);
+      return d.getFullYear() === y && (d.getMonth() + 1) === m;
+    }
+
     async function submitLeave() {
       if (!currentUser) return;
 
@@ -971,6 +1027,7 @@
 
         if (currentUser.role === 'Manager' || currentUser.role === 'Admin') {
           loadManagerLeaves();
+          loadManagerOvertime();
         }
       } catch (err) {
         setAlert('employeeAlert', err.message || 'خطأ غير متوقع', 'error');
@@ -1022,7 +1079,6 @@
           });
         }
 
-        // تعبئة قائمة موظفي القسم في الإضافي
         const select = document.getElementById('mgrOtEmployeeSelect');
         if (select && data.managerEmployees) {
           select.innerHTML = '<option value="">اختر موظفاً</option>';
@@ -1100,9 +1156,77 @@
         document.getElementById('mgrOtHours').value = '';
         document.getElementById('mgrOtRate').value = '';
         await loadEmployeeDashboard();
+        await loadManagerOvertime();
       } catch (err) {
         setAlert('managerAlert', err.message || 'خطأ غير متوقع', 'error');
       }
+    }
+
+    // تقرير الإضافي لرئيس القسم
+    async function loadManagerOvertime() {
+      if (!currentUser) return;
+      try {
+        const data = await apiCall('getManagerOvertime', {
+          managerId: currentUser.employeeId,
+          pin: currentUser.pin
+        });
+
+        if (!data.ok) {
+          setAlert('managerAlert', data.error || 'فشل تحميل تقرير الإضافي', 'error');
+          return;
+        }
+
+        setAlert('managerAlert', '', '');
+        managerOtCache = data.overtime || [];
+        applyManagerOtFilterAndRender();
+      } catch (err) {
+        setAlert('managerAlert', err.message || 'خطأ غير متوقع', 'error');
+      }
+    }
+
+    function applyManagerOtFilterAndRender() {
+      const month = document.getElementById('mgrOtMonthFilter').value;
+      let list = managerOtCache.slice();
+
+      if (month) {
+        list = list.filter(o => sameYearMonth(o.Date, month));
+      }
+
+      let totalHours = 0;
+      let totalValue = 0;
+      list.forEach(o => {
+        totalHours += Number(o.Hours || 0);
+        totalValue += Number(o.Value || 0);
+      });
+
+      const statsRow = document.getElementById('managerOtStatsRow');
+      statsRow.innerHTML = `
+        <div class="stat-pill"><span>إجمالي الساعات</span><strong>${totalHours}</strong></div>
+        <div class="stat-pill"><span>إجمالي القيمة</span><strong>${totalValue}</strong></div>
+      `;
+
+      const tbody = document.querySelector('#managerOtTable tbody');
+      tbody.innerHTML = '';
+      if (!list.length) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="7">لا توجد بيانات إضافي لهذا الفلتر.</td>`;
+        tbody.appendChild(tr);
+        return;
+      }
+
+      list.forEach((o, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${o.OTID}</td>
+          <td>${o.EmployeeName || o.EmployeeID}</td>
+          <td>${o.EmployeeDepartment || ''}</td>
+          <td>${formatDate(o.Date)}</td>
+          <td>${o.Hours}</td>
+          <td>${o.Rate}</td>
+          <td>${o.Value}</td>
+        `;
+        tbody.appendChild(tr);
+      });
     }
 
     async function loadAdminReport() {
@@ -1134,7 +1258,6 @@
           </div>
         `;
 
-        // جلب البيانات التفصيلية مرة واحدة وتخزينها في الكاش
         const details = await apiCall('adminDetails', {
           adminId: currentUser.employeeId,
           pin: currentUser.pin
@@ -1182,6 +1305,7 @@
       const leaveType = document.getElementById('adminFilterLeaveType').value;
       const leaveStatus = document.getElementById('adminFilterLeaveStatus').value;
       const empSearch = document.getElementById('adminFilterEmployee').value.trim().toLowerCase();
+      const otMonth = document.getElementById('adminFilterOtMonth').value;
 
       // الموظفون
       let empList = adminDataCache.employees.slice();
@@ -1219,6 +1343,9 @@
       let otList = adminDataCache.overtime.slice();
       if (dept) {
         otList = otList.filter(o => String(o.EmployeeDepartment || '') === String(dept));
+      }
+      if (otMonth) {
+        otList = otList.filter(o => sameYearMonth(o.Date, otMonth));
       }
       if (empSearch) {
         otList = otList.filter(o =>
@@ -1263,7 +1390,7 @@
         tbody.appendChild(tr);
         return;
       }
-      list.forEach((lv, i) => {
+      list.forEach((lv) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${lv.RequestID}</td>
@@ -1283,13 +1410,27 @@
     function renderAdminOTTable(list) {
       const tbody = document.querySelector('#adminOTTable tbody');
       tbody.innerHTML = '';
+
+      let totalHours = 0;
+      let totalValue = 0;
+      list.forEach(o => {
+        totalHours += Number(o.Hours || 0);
+        totalValue += Number(o.Value || 0);
+      });
+
+      const statsRow = document.getElementById('adminOtStatsRow');
+      statsRow.innerHTML = `
+        <div class="stat-pill"><span>إجمالي الساعات (حسب الفلتر)</span><strong>${totalHours}</strong></div>
+        <div class="stat-pill"><span>إجمالي القيمة (حسب الفلتر)</span><strong>${totalValue}</strong></div>
+      `;
+
       if (!list.length) {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td colspan="8">لا توجد بيانات.</td>`;
         tbody.appendChild(tr);
         return;
       }
-      list.forEach((ot, i) => {
+      list.forEach((ot) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${ot.OTID}</td>
