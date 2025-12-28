@@ -333,6 +333,13 @@
       cursor: pointer;
     }
 
+    .sp-block.hidden {
+      display: none;
+    }
+    .sp-block {
+      margin-bottom: 10px;
+    }
+
     @media (max-width: 600px) {
       .app-header h1 {
         font-size: 0.95rem;
@@ -352,7 +359,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
           <div>
             <h2 class="login-title">نظام إدارة الموظفين - جي ستور</h2>
-            <div class="login-sub">إجازات – إضافي – تقارير</div>
+            <div class="login-sub">  طلبات –  إجازات – إضافي – تقارير</div>
           </div>
           <div style="width:40px;height:40px;border-radius:999px;background:linear-gradient(135deg,#0ea5e9,#2563eb);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:0.9rem;box-shadow:0 6px 16px rgba(37,99,235,0.6);">
             HR
@@ -381,7 +388,7 @@
         </button>
 
         <div class="login-footer">
-          واجهة تجريبية – البيانات الفعلية في Google Sheets
+          شركة جي ستور  -  إدارة الموظفين  
         </div>
       </div>
     </div>
@@ -390,7 +397,7 @@
   <!-- واجهة التطبيق الرئيسية -->
   <div id="appView" class="hidden">
     <header class="app-header">
-      <h1>لوحة نظام الموارد البشرية</h1>
+      <h1>             شركة جي ستور  -  إدارة الموظفين  </h1>
       <div>
         <div class="user-info-small" id="headerUserInfo"></div>
         <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
@@ -509,6 +516,118 @@
             </table>
           </div>
         </div>
+
+        <!-- 🆕 طلبات خاصة للإدارة -->
+        <div class="card" style="margin-top:12px;">
+          <h3 class="card-title" style="font-size:0.9rem;">طلبات خاصة للإدارة</h3>
+
+          <div id="specialAlert" class="alert hidden"></div>
+
+          <div class="input-group">
+            <label>نوع الطلب</label>
+            <select id="spType" onchange="updateSpecialRequestForm()">
+              <option value="SalaryRaise">طلب زيادة راتب</option>
+              <option value="Advance">طلب سلفة مالية</option>
+              <option value="Suggestion">صندوق المقترحات والشكاوى</option>
+              <option value="Training">طلب تدريب وتطوير</option>
+              <option value="Transfer">طلب نقل داخلي</option>
+            </select>
+          </div>
+
+          <div class="input-group">
+            <label>عنوان مختصر للطلب</label>
+            <input type="text" id="spTitle" placeholder="مثال: طلب زيادة راتب بعد سنة من العمل" />
+          </div>
+
+          <!-- حقول خاصة بكل نوع -->
+          <div id="spFieldsContainer">
+
+            <!-- زيادة راتب -->
+            <div class="sp-block sp-salary">
+              <div class="input-group">
+                <label>المبررات</label>
+                <textarea id="spJustification" rows="2"></textarea>
+              </div>
+              <div class="input-group">
+                <label>الإنجازات المحققة</label>
+                <textarea id="spAchievements" rows="2"></textarea>
+              </div>
+            </div>
+
+            <!-- سلفة مالية -->
+            <div class="sp-block sp-advance hidden">
+              <div class="input-group">
+                <label>المبلغ المطلوب</label>
+                <input type="number" id="spAmount" step="1" />
+              </div>
+              <div class="input-group">
+                <label>آلية الخصم الشهري المقترحة</label>
+                <input type="text" id="spInstallment" placeholder="مثال: 50,000 شهرياً لمدة 6 أشهر" />
+              </div>
+            </div>
+
+            <!-- مقترحات / شكاوى -->
+            <div class="sp-block sp-suggestion hidden">
+              <div class="input-group">
+                <label>الفكرة / الشكوى</label>
+                <textarea id="spIdea" rows="3"></textarea>
+              </div>
+            </div>
+
+            <!-- تدريب وتطوير -->
+            <div class="sp-block sp-training hidden">
+              <div class="input-group">
+                <label>الدورة / نوع التدريب المطلوب</label>
+                <input type="text" id="spTrainingType" placeholder="اسم الدورة أو نوع التدريب" />
+              </div>
+              <div class="input-group">
+                <label>ملاحظات إضافية حول التدريب</label>
+                <textarea id="spTrainingNotes" rows="2"></textarea>
+              </div>
+            </div>
+
+            <!-- نقل داخلي -->
+            <div class="sp-block sp-transfer hidden">
+              <div class="input-group">
+                <label>القسم / الفرع المطلوب للنقل</label>
+                <input type="text" id="spTargetDept" placeholder="مثال: قسم خدمة العملاء – فرع درعا" />
+              </div>
+              <div class="input-group">
+                <label>سبب طلب النقل</label>
+                <textarea id="spTransferReason" rows="2"></textarea>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="input-group">
+            <label>ملاحظات إضافية (اختياري)</label>
+            <textarea id="spComment" rows="2"></textarea>
+          </div>
+
+          <button class="btn btn-primary btn-sm" onclick="submitSpecialRequest()">
+            إرسال الطلب للإدارة
+          </button>
+
+          <!-- جدول طلبات هذا الموظف -->
+          <div class="card" style="margin-top:12px;background:#f9fafb;">
+            <h4 class="card-title" style="font-size:0.85rem;">طلباتك السابقة</h4>
+            <div class="table-wrapper">
+              <table id="specialReqTable">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>النوع</th>
+                    <th>العنوان</th>
+                    <th>الحالة</th>
+                    <th>رد الإدارة</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- لوحة رئيس القسم -->
@@ -583,6 +702,58 @@
 
         <div id="adminSummary" style="margin-top:10px;"></div>
 
+        <!-- طلبات خاصة للإدارة (جدول للأدمن فقط) -->
+        <div class="card" style="margin-top:14px;background:#f9fafb;">
+          <h3 class="card-title" style="font-size:0.9rem;">الطلبات الخاصة من الموظفين (للإدارة فقط)</h3>
+
+          <div class="stats-row">
+            <div class="input-group" style="flex:1 1 160px;">
+              <label>تصفية حسب نوع الطلب</label>
+              <select id="adminSpTypeFilter">
+                <option value="">كل الأنواع</option>
+                <option value="SalaryRaise">طلب زيادة راتب</option>
+                <option value="Advance">طلب سلفة مالية</option>
+                <option value="Suggestion">مقترح / شكوى</option>
+                <option value="Training">طلب تدريب</option>
+                <option value="Transfer">طلب نقل داخلي</option>
+              </select>
+            </div>
+            <div class="input-group" style="flex:1 1 160px;">
+              <label>تصفية حسب الحالة</label>
+              <select id="adminSpStatusFilter">
+                <option value="">كل الحالات</option>
+                <option value="Pending">قيد المراجعة</option>
+                <option value="Approved">مقبول</option>
+                <option value="Rejected">مرفوض</option>
+              </select>
+            </div>
+            <div style="display:flex;align-items:flex-end;">
+              <button class="btn btn-secondary btn-sm" onclick="loadAdminSpecialRequests()">
+                تحميل الطلبات
+              </button>
+            </div>
+          </div>
+
+          <div id="adminSpecialAlert" class="alert hidden"></div>
+
+          <div class="table-wrapper">
+            <table id="adminSpTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>الموظف</th>
+                  <th>النوع</th>
+                  <th>العنوان</th>
+                  <th>الحالة</th>
+                  <th>رد الإدارة</th>
+                  <th>إجراء</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
         <p style="font-size:0.8rem;color:#6b7280;margin-top:12px;">
           يمكن توسيع هذه اللوحة لاحقاً لعرض جداول تفصيلية (كل الموظفين، كل الإجازات، كل الإضافي).
         </p>
@@ -591,8 +762,8 @@
   </div>
 
   <script>
-    // 🟦 رابط الـ Web App من Google Apps Script
-    const API_URL = "https://script.google.com/macros/s/AKfycby7ZfnxO2-7q3AilvIQs8BDRhFUdxKJt3jmIEns6P1fToZjYCVAT0iab79mrCpWRjlx/exec";
+    // 🟦 رابط الـ Web App من Google Apps Script (حدّثه عند كل Deploy جديد)
+const API_URL = "https://script.google.com/macros/s/AKfycby7ZfnxO2-7q3AilvIQs8BDRhFUdxKJt3jmIEns6P1fToZjYCVAT0iab79mrCpWRjlx/exec";
 
     let currentUser = null;
     let employeeOTRecords = []; // سجلات الإضافي للموظف الحالي
@@ -620,7 +791,7 @@
       const body = JSON.stringify({ action, ...payload });
       const res = await fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "text/plain" }, // مهم جداً
+        headers: { "Content-Type": "text/plain" },
         body: body
       });
       return res.json();
@@ -673,6 +844,7 @@
 
         showView(true);
         initTabs();
+        updateSpecialRequestForm(); // لضبط الحقول الأولى
         await loadEmployeeDashboard();
 
         if (currentUser.role === 'Manager' || currentUser.role === 'Admin') {
@@ -710,6 +882,10 @@
               (currentUser.role === 'Manager' || currentUser.role === 'Admin')) {
             loadManagerLeaves();
           }
+
+          if (target === 'adminPanel' && currentUser && currentUser.role === 'Admin') {
+            loadAdminReport();
+          }
         });
       });
     }
@@ -721,7 +897,7 @@
       return d.toISOString().split('T')[0];
     }
 
-    // إرجاع مفتاح شهر بالشكل YYYY-MM من أي قيمة تاريخ
+    // مفتاح شهر بالشكل YYYY-MM من أي قيمة تاريخ
     function getMonthKey(value) {
       if (!value) return '';
       const d = new Date(value);
@@ -843,10 +1019,34 @@
           leaveTbody.appendChild(tr);
         });
 
-        // 🟦 تحديث سجلات الإضافي + الفلتر
+        // سجلات الإضافي + الفلتر
         employeeOTRecords = data.overtime.records || [];
         populateOTMonthFilter();
         renderEmployeeOvertimeTable();
+
+        // طلبات خاصة للإدارة (من السيرفر)
+        const mySpecial = data.specialRequests || [];
+        const sTbody = document.querySelector('#specialReqTable tbody');
+        if (sTbody) {
+          sTbody.innerHTML = '';
+          if (mySpecial.length === 0) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td colspan="5">لا توجد طلبات خاصة مسجلة.</td>`;
+            sTbody.appendChild(tr);
+          } else {
+            mySpecial.forEach(req => {
+              const tr = document.createElement('tr');
+              tr.innerHTML = `
+                <td>${req.RequestID}</td>
+                <td>${getRequestTypeLabel(req.Type)}</td>
+                <td>${req.Title || ''}</td>
+                <td>${req.Status || ''}</td>
+                <td>${(req.AdminReply || '').toString().slice(0, 80)}</td>
+              `;
+              sTbody.appendChild(tr);
+            });
+          }
+        }
 
       } catch (err) {
         setAlert('employeeAlert', err.message || 'خطأ غير متوقع', 'error');
@@ -1038,6 +1238,186 @@
         `;
       } catch (err) {
         setAlert('adminAlert', err.message || 'خطأ غير متوقع', 'error');
+      }
+    }
+
+    // 🆕 جزء الطلبات الخاصة للإدارة (Front)
+
+    function updateSpecialRequestForm() {
+      const type = document.getElementById('spType').value;
+      const blocks = document.querySelectorAll('.sp-block');
+      blocks.forEach(b => b.classList.add('hidden'));
+
+      if (type === 'SalaryRaise') {
+        document.querySelector('.sp-salary').classList.remove('hidden');
+      } else if (type === 'Advance') {
+        document.querySelector('.sp-advance').classList.remove('hidden');
+      } else if (type === 'Suggestion') {
+        document.querySelector('.sp-suggestion').classList.remove('hidden');
+      } else if (type === 'Training') {
+        document.querySelector('.sp-training').classList.remove('hidden');
+      } else if (type === 'Transfer') {
+        document.querySelector('.sp-transfer').classList.remove('hidden');
+      }
+    }
+
+    function getRequestTypeLabel(code) {
+      switch (code) {
+        case 'SalaryRaise': return 'طلب زيادة راتب';
+        case 'Advance': return 'طلب سلفة مالية';
+        case 'Suggestion': return 'مقترح / شكوى';
+        case 'Training': return 'طلب تدريب وتطوير';
+        case 'Transfer': return 'طلب نقل داخلي';
+        default: return code || '';
+      }
+    }
+
+    async function submitSpecialRequest() {
+      if (!currentUser) return;
+
+      const type = document.getElementById('spType').value;
+      const title = document.getElementById('spTitle').value.trim();
+      const justification = document.getElementById('spJustification')?.value || '';
+      const achievements = document.getElementById('spAchievements')?.value || '';
+      const amount = document.getElementById('spAmount')?.value || '';
+      const installment = document.getElementById('spInstallment')?.value || '';
+      const idea = document.getElementById('spIdea')?.value || '';
+      const trainingType = document.getElementById('spTrainingType')?.value || '';
+      const trainingNotes = document.getElementById('spTrainingNotes')?.value || '';
+      const targetDept = document.getElementById('spTargetDept')?.value || '';
+      const transferReason = document.getElementById('spTransferReason')?.value || '';
+      const comment = document.getElementById('spComment')?.value || '';
+
+      if (!type) {
+        setAlert('specialAlert', 'يرجى اختيار نوع الطلب', 'error');
+        return;
+      }
+
+      try {
+        const payload = {
+          employeeId: currentUser.employeeId,
+          pin: currentUser.pin,
+          reqType: type,
+          title,
+          justification,
+          achievements,
+          amount,
+          installment,
+          idea,
+          trainingType,
+          trainingNotes,
+          targetDept,
+          transferReason,
+          comment
+        };
+
+        const data = await apiCall('submitSpecialRequest', payload);
+
+        if (!data.ok) {
+          setAlert('specialAlert', data.error || 'فشل إرسال الطلب', 'error');
+          return;
+        }
+
+        setAlert('specialAlert', 'تم إرسال الطلب بنجاح (رقم الطلب: ' + data.requestId + ')', 'success');
+
+        // تفريغ الحقول
+        document.getElementById('spTitle').value = '';
+        document.getElementById('spJustification').value = '';
+        document.getElementById('spAchievements').value = '';
+        if (document.getElementById('spAmount')) document.getElementById('spAmount').value = '';
+        if (document.getElementById('spInstallment')) document.getElementById('spInstallment').value = '';
+        if (document.getElementById('spIdea')) document.getElementById('spIdea').value = '';
+        if (document.getElementById('spTrainingType')) document.getElementById('spTrainingType').value = '';
+        if (document.getElementById('spTrainingNotes')) document.getElementById('spTrainingNotes').value = '';
+        if (document.getElementById('spTargetDept')) document.getElementById('spTargetDept').value = '';
+        if (document.getElementById('spTransferReason')) document.getElementById('spTransferReason').value = '';
+        document.getElementById('spComment').value = '';
+
+        await loadEmployeeDashboard();
+
+      } catch (err) {
+        setAlert('specialAlert', err.message || 'خطأ غير متوقع', 'error');
+      }
+    }
+
+    async function loadAdminSpecialRequests() {
+      if (!currentUser) return;
+
+      const type = document.getElementById('adminSpTypeFilter').value;
+      const status = document.getElementById('adminSpStatusFilter').value;
+
+      try {
+        const data = await apiCall('adminGetSpecialRequests', {
+          adminId: currentUser.employeeId,
+          pin: currentUser.pin,
+          type,
+          status
+        });
+
+        if (!data.ok) {
+          setAlert('adminSpecialAlert', data.error || 'فشل تحميل الطلبات الخاصة', 'error');
+          return;
+        }
+
+        setAlert('adminSpecialAlert', '', '');
+
+        const tbody = document.querySelector('#adminSpTable tbody');
+        tbody.innerHTML = '';
+
+        if (!data.requests || data.requests.length === 0) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td colspan="7">لا توجد طلبات مطابقة للفلاتر الحالية.</td>`;
+          tbody.appendChild(tr);
+          return;
+        }
+
+        data.requests.forEach(req => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${req.RequestID}</td>
+            <td>${req.EmployeeName || req.EmployeeID}</td>
+            <td>${getRequestTypeLabel(req.Type)}</td>
+            <td>${req.Title || ''}</td>
+            <td>${req.Status || ''}</td>
+            <td>${(req.AdminReply || '').toString().slice(0, 80)}</td>
+            <td>
+              <button class="btn btn-sm btn-primary" onclick="adminReplyToSpecial(${req.RequestID}, 'Approved')">قبول</button>
+              <button class="btn btn-sm btn-secondary" onclick="adminReplyToSpecial(${req.RequestID}, 'Rejected')">رفض</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+      } catch (err) {
+        setAlert('adminSpecialAlert', err.message || 'خطأ غير متوقع', 'error');
+      }
+    }
+
+    async function adminReplyToSpecial(requestId, status) {
+      if (!currentUser) return;
+
+      const reply = prompt('اكتب ردك على الطلب (سيظهر للموظف):', '');
+      if (reply === null) return;
+
+      try {
+        const data = await apiCall('adminReplySpecialRequest', {
+          adminId: currentUser.employeeId,
+          pin: currentUser.pin,
+          requestId,
+          status,
+          reply
+        });
+
+        if (!data.ok) {
+          setAlert('adminSpecialAlert', data.error || 'فشل تحديث حالة الطلب', 'error');
+          return;
+        }
+
+        setAlert('adminSpecialAlert', 'تم تحديث الطلب بنجاح.', 'success');
+        await loadAdminSpecialRequests();
+
+      } catch (err) {
+        setAlert('adminSpecialAlert', err.message || 'خطأ غير متوقع', 'error');
       }
     }
 
