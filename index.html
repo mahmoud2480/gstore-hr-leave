@@ -368,7 +368,7 @@
 
         <div class="input-group">
           <label>رقم الموظف (EmployeeID)</label>
-          <input type="text" id="loginEmployeeId" placeholder="مثال: A101" />
+          <input type="text" id="loginEmployeeId" placeholder="مثال: A1" />
         </div>
 
         <div class="input-group">
@@ -381,7 +381,8 @@
         </button>
 
         <div class="login-footer">
-جي ستور        </div>
+          واجهة تجريبية – البيانات الفعلية في Google Sheets
+        </div>
       </div>
     </div>
   </div>
@@ -389,7 +390,7 @@
   <!-- واجهة التطبيق الرئيسية -->
   <div id="appView" class="hidden">
     <header class="app-header">
-      <h1>    شركة جي ستور  لوحة نظام الموارد البشرية</h1>
+      <h1>لوحة نظام الموارد البشرية</h1>
       <div>
         <div class="user-info-small" id="headerUserInfo"></div>
         <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
@@ -416,8 +417,15 @@
 
         <div id="employeeAlert" class="alert hidden"></div>
 
+        <!-- رصيد الإجازات -->
         <div class="stats-row" id="leaveStatsRow"></div>
 
+        <!-- زر تحديث لوحة الموظف -->
+        <div style="margin:6px 0 12px;">
+          <button class="btn btn-secondary btn-sm" onclick="loadEmployeeDashboard()">تحديث البيانات</button>
+        </div>
+
+        <!-- طلب إجازة جديدة -->
         <div class="card" style="margin-top:12px;background:#f9fafb;">
           <h3 class="card-title" style="font-size:0.9rem;">طلب إجازة جديدة</h3>
 
@@ -434,12 +442,12 @@
             <select id="leaveType">
               <option value="Annual">سنوية</option>
               <option value="Sick">مرضية</option>
+              <option value="HourlyExceptional">استثنائية ساعية</option>
+              <option value="Exceptional">استثنائية (أيام)</option>
               <option value="Marriage">زواج</option>
               <option value="Bereavement1">وفاة (درجة أولى)</option>
               <option value="Bereavement2">وفاة (درجة ثانية)</option>
-              <option value="Exceptional">استثنائية</option>
               <option value="Holiday">إجازة أعياد / رسمية</option>
-              <option value="HourlyExceptional">ساعية (تُحسب من الاستثنائية)</option>
             </select>
           </div>
           <div class="input-group">
@@ -449,11 +457,9 @@
           <button class="btn btn-primary btn-sm" onclick="submitLeave()">
             إرسال طلب الإجازة
           </button>
-          <button class="btn btn-secondary btn-sm" style="margin-right:6px;" onclick="refreshEmployeeDashboard()">
-            🔄 تحديث البيانات
-          </button>
         </div>
 
+        <!-- طلبات الإجازة -->
         <div class="card" style="margin-top:12px;">
           <h3 class="card-title" style="font-size:0.9rem;">طلبات الإجازة الخاصة بك</h3>
           <div class="table-wrapper">
@@ -473,9 +479,21 @@
           </div>
         </div>
 
+        <!-- ساعات الإضافي -->
         <div class="card" style="margin-top:12px;">
           <h3 class="card-title" style="font-size:0.9rem;">ساعات الإضافي الخاصة بك</h3>
+
+          <!-- فلتر شهر الإضافي -->
+          <div class="input-group" style="max-width:220px;">
+            <label>تصفية الإضافي حسب الشهر</label>
+            <select id="otMonthFilter" onchange="renderEmployeeOvertimeTable()">
+              <option value="">كل الأشهر</option>
+            </select>
+          </div>
+
+          <!-- إجماليات الإضافي حسب الفلتر -->
           <div class="stats-row" id="otStatsRow"></div>
+
           <div class="table-wrapper">
             <table id="otTable">
               <thead>
@@ -518,8 +536,6 @@
                   <th>إلى</th>
                   <th>أيام</th>
                   <th>النوع</th>
-                  <th>الرصيد قبل</th>
-                  <th>الرصيد بعد</th>
                   <th>الإجراء</th>
                 </tr>
               </thead>
@@ -528,13 +544,11 @@
           </div>
         </div>
 
-        <div class="card" style="background:#f9fafb;margin-bottom:14px;">
+        <div class="card" style="background:#f9fafb;">
           <h3 class="card-title" style="font-size:0.9rem;">تسجيل إضافي لموظف في القسم</h3>
           <div class="input-group">
-            <label>الموظف</label>
-            <select id="mgrOtEmployeeSelect">
-              <option value="">اختر موظفاً</option>
-            </select>
+            <label>رقم الموظف</label>
+            <input type="text" id="mgrOtEmployeeId" placeholder="EmployeeID" />
           </div>
           <div class="input-group">
             <label>التاريخ</label>
@@ -552,183 +566,36 @@
             تسجيل الإضافي
           </button>
         </div>
-
-        <!-- تقرير الإضافي لرئيس القسم -->
-        <div class="card" style="background:#f9fafb;">
-          <h3 class="card-title" style="font-size:0.9rem;">تقرير الإضافي لقسمك</h3>
-
-          <div class="stats-row" style="margin-bottom:10px;">
-            <div class="input-group" style="flex:1 1 160px;">
-              <label>شهر الإضافي</label>
-              <input type="month" id="mgrOtMonthFilter" />
-            </div>
-            <div class="stats-row" id="managerOtStatsRow" style="flex:3 1 200px;"></div>
-          </div>
-
-          <button class="btn btn-secondary btn-sm" onclick="loadManagerOvertime()">
-            🔄 تحديث تقرير الإضافي
-          </button>
-
-          <div class="table-wrapper" style="margin-top:8px;">
-            <table id="managerOtTable">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>الموظف</th>
-                  <th>القسم</th>
-                  <th>التاريخ</th>
-                  <th>الساعات</th>
-                  <th>سعر الساعة</th>
-                  <th>القيمة</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
       </div>
 
       <!-- لوحة الإدارة -->
       <div id="adminPanel" class="card hidden">
         <h2 class="card-title">
           لوحة الإدارة
-          <span class="badge">تقرير + بيانات تفصيلية</span>
+          <span class="badge">تقرير مختصر</span>
         </h2>
 
         <button class="btn btn-secondary btn-sm" onclick="loadAdminReport()">
-          🔄 تحديث التقرير والبيانات
+          تحديث التقرير
         </button>
 
         <div id="adminAlert" class="alert hidden" style="margin-top:8px;"></div>
 
-        <!-- ملخص سريع -->
         <div id="adminSummary" style="margin-top:10px;"></div>
 
-        <!-- فلاتر + جداول تفصيلية -->
-        <div class="card" style="margin-top:12px;background:#f9fafb;">
-          <h3 class="card-title" style="font-size:0.9rem;">البيانات التفصيلية مع الفلاتر</h3>
-
-          <div class="stats-row" style="margin-bottom:10px;">
-            <div class="input-group" style="flex:1 1 150px;">
-              <label>القسم</label>
-              <select id="adminFilterDept">
-                <option value="">كل الأقسام</option>
-              </select>
-            </div>
-            <div class="input-group" style="flex:1 1 150px;">
-              <label>نوع الإجازة</label>
-              <select id="adminFilterLeaveType">
-                <option value="">كل الأنواع</option>
-                <option value="Annual">سنوية</option>
-                <option value="Sick">مرضية</option>
-                <option value="Marriage">زواج</option>
-                <option value="Bereavement1">وفاة (درجة أولى)</option>
-                <option value="Bereavement2">وفاة (درجة ثانية)</option>
-                <option value="Exceptional">استثنائية</option>
-                <option value="Holiday">أعياد / رسمية</option>
-                <option value="HourlyExceptional">ساعية (استثنائية)</option>
-              </select>
-            </div>
-            <div class="input-group" style="flex:1 1 150px;">
-              <label>حالة الإجازة</label>
-              <select id="adminFilterLeaveStatus">
-                <option value="">الكل</option>
-                <option value="Pending">معلّق</option>
-                <option value="Approved">مقبول</option>
-                <option value="Rejected">مرفوض</option>
-              </select>
-            </div>
-            <div class="input-group" style="flex:1 1 150px;">
-              <label>الموظف (بحث)</label>
-              <input type="text" id="adminFilterEmployee" placeholder="اسم أو رقم الموظف" />
-            </div>
-            <div class="input-group" style="flex:1 1 150px;">
-              <label>شهر الإضافي</label>
-              <input type="month" id="adminFilterOtMonth" />
-            </div>
-          </div>
-
-          <div class="tabs" id="adminDetailTabs">
-            <button class="tab active" data-target="adminEmployeesTableWrapper">الموظفون</button>
-            <button class="tab" data-target="adminLeavesTableWrapper">الإجازات</button>
-            <button class="tab" data-target="adminOTTableWrapper">الإضافي</button>
-          </div>
-
-          <!-- جدول الموظفين -->
-          <div id="adminEmployeesTableWrapper">
-            <table id="adminEmployeesTable">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>رقم الموظف</th>
-                  <th>الاسم</th>
-                  <th>القسم</th>
-                  <th>الدور</th>
-                  <th>تاريخ المباشرة</th>
-                  <th>أيام السنوية / سنة</th>
-                  <th>حالة التوظيف</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-
-          <!-- جدول الإجازات -->
-          <div id="adminLeavesTableWrapper" class="hidden">
-            <table id="adminLeavesTable">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>الموظف</th>
-                  <th>القسم</th>
-                  <th>من</th>
-                  <th>إلى</th>
-                  <th>أيام</th>
-                  <th>النوع</th>
-                  <th>الحالة</th>
-                  <th>رئيس القسم</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-
-          <!-- جدول الإضافي -->
-          <div id="adminOTTableWrapper" class="hidden">
-            <div class="stats-row" id="adminOtStatsRow" style="margin-bottom:8px;"></div>
-            <table id="adminOTTable">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>الموظف</th>
-                  <th>القسم</th>
-                  <th>التاريخ</th>
-                  <th>الساعات</th>
-                  <th>سعر الساعة</th>
-                  <th>القيمة</th>
-                  <th>أُدخل بواسطة</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-
-        </div>
+        <p style="font-size:0.8rem;color:#6b7280;margin-top:12px;">
+          يمكن توسيع هذه اللوحة لاحقاً لعرض جداول تفصيلية (كل الموظفين، كل الإجازات، كل الإضافي).
+        </p>
       </div>
     </div>
   </div>
 
   <script>
-    // 🔗 رابط الـ Web App من Google Apps Script
+    // 🟦 رابط الـ Web App من Google Apps Script
     const API_URL = "https://script.google.com/macros/s/AKfycby7ZfnxO2-7q3AilvIQs8BDRhFUdxKJt3jmIEns6P1fToZjYCVAT0iab79mrCpWRjlx/exec";
 
     let currentUser = null;
-    let adminDataCache = {
-      employees: [],
-      leaves: [],
-      overtime: []
-    };
-    let managerOtCache = [];
+    let employeeOTRecords = []; // سجلات الإضافي للموظف الحالي
 
     function showView(isLoggedIn) {
       document.getElementById('loginView').classList.toggle('hidden', isLoggedIn);
@@ -753,7 +620,7 @@
       const body = JSON.stringify({ action, ...payload });
       const res = await fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "text/plain" },
+        headers: { "Content-Type": "text/plain" }, // مهم جداً
         body: body
       });
       return res.json();
@@ -809,12 +676,7 @@
         await loadEmployeeDashboard();
 
         if (currentUser.role === 'Manager' || currentUser.role === 'Admin') {
-          await loadManagerLeaves();
-          await loadManagerOvertime();
-        }
-
-        if (currentUser.role === 'Admin') {
-          await loadAdminReport();
+          loadManagerLeaves();
         }
 
       } catch (err) {
@@ -830,10 +692,10 @@
     }
 
     function initTabs() {
-      const mainTabs = document.querySelectorAll('#mainTabs .tab');
-      mainTabs.forEach(tab => {
+      const tabs = document.querySelectorAll('.tab');
+      tabs.forEach(tab => {
         tab.addEventListener('click', () => {
-          mainTabs.forEach(t => t.classList.remove('active'));
+          tabs.forEach(t => t.classList.remove('active'));
           tab.classList.add('active');
 
           const target = tab.getAttribute('data-target');
@@ -847,55 +709,93 @@
           if (target === 'managerPanel' && currentUser &&
               (currentUser.role === 'Manager' || currentUser.role === 'Admin')) {
             loadManagerLeaves();
-            loadManagerOvertime();
-          }
-          if (target === 'adminPanel' && currentUser && currentUser.role === 'Admin') {
-            loadAdminReport();
-          }
-        });
-      });
-
-      initAdminDetailTabs();
-      setupAdminFilters();
-      setupManagerFilters();
-    }
-
-    function initAdminDetailTabs() {
-      const tabs = document.querySelectorAll('#adminDetailTabs .tab');
-      tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-          tabs.forEach(t => t.classList.remove('active'));
-          tab.classList.add('active');
-
-          ['adminEmployeesTableWrapper','adminLeavesTableWrapper','adminOTTableWrapper'].forEach(id => {
-            document.getElementById(id).classList.add('hidden');
-          });
-          const target = tab.getAttribute('data-target');
-          if (target) {
-            document.getElementById(target).classList.remove('hidden');
           }
         });
       });
     }
 
-    function setupAdminFilters() {
-      const ids = ['adminFilterDept','adminFilterLeaveType','adminFilterLeaveStatus','adminFilterOtMonth'];
-      ids.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-          el.addEventListener('change', applyAdminFiltersAndRender);
-        }
-      });
-      const empInput = document.getElementById('adminFilterEmployee');
-      if (empInput) {
-        empInput.addEventListener('input', applyAdminFiltersAndRender);
+    function formatDate(value) {
+      if (!value) return '';
+      const d = new Date(value);
+      if (isNaN(d)) return String(value).split('T')[0] || String(value);
+      return d.toISOString().split('T')[0];
+    }
+
+    // إرجاع مفتاح شهر بالشكل YYYY-MM من أي قيمة تاريخ
+    function getMonthKey(value) {
+      if (!value) return '';
+      const d = new Date(value);
+      if (isNaN(d)) {
+        return String(value).slice(0, 7);
       }
+      return d.toISOString().slice(0, 7);
     }
 
-    function setupManagerFilters() {
-      const monthInput = document.getElementById('mgrOtMonthFilter');
-      if (monthInput) {
-        monthInput.addEventListener('change', applyManagerOtFilterAndRender);
+    // ملء قائمة الأشهر المتاحة من سجلات الإضافي
+    function populateOTMonthFilter() {
+      const select = document.getElementById('otMonthFilter');
+      if (!select) return;
+
+      const monthsSet = new Set();
+      (employeeOTRecords || []).forEach(rec => {
+        const key = getMonthKey(rec.Date);
+        if (key) monthsSet.add(key);
+      });
+
+      const months = Array.from(monthsSet).sort();
+
+      let optionsHtml = `<option value="">كل الأشهر</option>`;
+      months.forEach(m => {
+        optionsHtml += `<option value="${m}">${m}</option>`;
+      });
+
+      select.innerHTML = optionsHtml;
+    }
+
+    // عرض جدول الإضافي + الإجمالي حسب الشهر المختار
+    function renderEmployeeOvertimeTable() {
+      const tbody = document.querySelector('#otTable tbody');
+      const statsRow = document.getElementById('otStatsRow');
+      const select = document.getElementById('otMonthFilter');
+
+      if (!tbody || !statsRow || !select) return;
+
+      const monthFilter = select.value;
+
+      let filtered = employeeOTRecords || [];
+      if (monthFilter) {
+        filtered = filtered.filter(rec => getMonthKey(rec.Date) === monthFilter);
+      }
+
+      let totalHours = 0;
+      let totalValue = 0;
+      filtered.forEach(rec => {
+        totalHours += Number(rec.Hours || 0);
+        totalValue += Number(rec.Value || 0);
+      });
+
+      statsRow.innerHTML = `
+        <div class="stat-pill"><span>إجمالي الساعات</span><strong>${totalHours}</strong></div>
+        <div class="stat-pill"><span>إجمالي القيمة</span><strong>${totalValue}</strong></div>
+      `;
+
+      tbody.innerHTML = '';
+      filtered.forEach(rec => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${rec.OTID}</td>
+          <td>${formatDate(rec.Date)}</td>
+          <td>${rec.Hours}</td>
+          <td>${rec.Rate}</td>
+          <td>${rec.Value}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      if (filtered.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="5">لا توجد سجلات إضافي لهذا الفلتر.</td>`;
+        tbody.appendChild(tr);
       }
     }
 
@@ -924,7 +824,6 @@
         const leaveTbody = document.querySelector('#leaveTable tbody');
         leaveTbody.innerHTML = '';
         (data.leaves || []).forEach(req => {
-          const tr = document.createElement('tr');
           const statusClass =
             req.Status === 'Approved'
               ? 'status-approved'
@@ -932,6 +831,7 @@
               ? 'status-rejected'
               : 'status-pending';
 
+          const tr = document.createElement('tr');
           tr.innerHTML = `
             <td>${req.RequestID}</td>
             <td>${formatDate(req.StartDate)}</td>
@@ -943,48 +843,14 @@
           leaveTbody.appendChild(tr);
         });
 
-        const otStatsRow = document.getElementById('otStatsRow');
-        otStatsRow.innerHTML = `
-          <div class="stat-pill"><span>إجمالي الساعات</span><strong>${data.overtime.totalHours || 0}</strong></div>
-          <div class="stat-pill"><span>إجمالي القيمة</span><strong>${data.overtime.totalValue || 0}</strong></div>
-        `;
-
-        const otTbody = document.querySelector('#otTable tbody');
-        otTbody.innerHTML = '';
-        (data.overtime.records || []).forEach(rec => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${rec.OTID}</td>
-            <td>${formatDate(rec.Date)}</td>
-            <td>${rec.Hours}</td>
-            <td>${rec.Rate}</td>
-            <td>${rec.Value}</td>
-          `;
-          otTbody.appendChild(tr);
-        });
+        // 🟦 تحديث سجلات الإضافي + الفلتر
+        employeeOTRecords = data.overtime.records || [];
+        populateOTMonthFilter();
+        renderEmployeeOvertimeTable();
 
       } catch (err) {
         setAlert('employeeAlert', err.message || 'خطأ غير متوقع', 'error');
       }
-    }
-
-    function refreshEmployeeDashboard() {
-      loadEmployeeDashboard();
-    }
-
-    function formatDate(value) {
-      if (!value) return '';
-      const d = new Date(value);
-      if (isNaN(d)) return String(value).split('T')[0] || String(value);
-      return d.toISOString().split('T')[0];
-    }
-
-    function sameYearMonth(dateValue, ymStr) {
-      if (!ymStr) return true;
-      const d = new Date(dateValue);
-      if (isNaN(d)) return false;
-      const [y, m] = ymStr.split('-').map(Number);
-      return d.getFullYear() === y && (d.getMonth() + 1) === m;
     }
 
     async function submitLeave() {
@@ -1015,18 +881,12 @@
           return;
         }
 
-        let msg = 'تم إرسال طلب الإجازة بنجاح (رقم الطلب: ' + data.requestId + ')';
-        if (data.warning) {
-          msg += ' – ملاحظة: ' + data.warning;
-        }
-
-        setAlert('employeeAlert', msg, 'success');
+        setAlert('employeeAlert', 'تم إرسال طلب الإجازة بنجاح (رقم الطلب: ' + data.requestId + ')', 'success');
         document.getElementById('leaveComment').value = '';
         await loadEmployeeDashboard();
 
         if (currentUser.role === 'Manager' || currentUser.role === 'Admin') {
           loadManagerLeaves();
-          loadManagerOvertime();
         }
       } catch (err) {
         setAlert('employeeAlert', err.message || 'خطأ غير متوقع', 'error');
@@ -1054,40 +914,28 @@
 
         if (!data.leaves || data.leaves.length === 0) {
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td colspan="10">لا توجد طلبات معلّقة حالياً.</td>`;
+          tr.innerHTML = `<td colspan="8">لا توجد طلبات معلّقة حالياً.</td>`;
           tbody.appendChild(tr);
-        } else {
-          data.leaves.forEach(req => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-              <td>${req.RequestID}</td>
-              <td>${req.EmployeeName || req.EmployeeID}</td>
-              <td>${req.EmployeeDepartment || ''}</td>
-              <td>${formatDate(req.StartDate)}</td>
-              <td>${formatDate(req.EndDate)}</td>
-              <td>${req.Days}</td>
-              <td>${req.Type || ''}</td>
-              <td>${req.BalanceBefore != null ? req.BalanceBefore : ''}</td>
-              <td>${req.BalanceAfter != null ? req.BalanceAfter : ''}</td>
-              <td>
-                <button class="btn btn-sm btn-primary" onclick="managerDecision(${req.RequestID}, 'Approved')">موافقة</button>
-                <button class="btn btn-sm btn-secondary" onclick="managerDecision(${req.RequestID}, 'Rejected')">رفض</button>
-              </td>
-            `;
-            tbody.appendChild(tr);
-          });
+          return;
         }
 
-        const select = document.getElementById('mgrOtEmployeeSelect');
-        if (select && data.managerEmployees) {
-          select.innerHTML = '<option value="">اختر موظفاً</option>';
-          data.managerEmployees.forEach(emp => {
-            const opt = document.createElement('option');
-            opt.value = emp.EmployeeID;
-            opt.textContent = `${emp.Name} – ${emp.EmployeeID}`;
-            select.appendChild(opt);
-          });
-        }
+        data.leaves.forEach(req => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${req.RequestID}</td>
+            <td>${req.EmployeeName || req.EmployeeID}</td>
+            <td>${req.EmployeeDepartment || ''}</td>
+            <td>${formatDate(req.StartDate)}</td>
+            <td>${formatDate(req.EndDate)}</td>
+            <td>${req.Days}</td>
+            <td>${req.Type || ''}</td>
+            <td>
+              <button class="btn btn-sm btn-primary" onclick="managerDecision(${req.RequestID}, 'Approved')">موافقة</button>
+              <button class="btn btn-sm btn-secondary" onclick="managerDecision(${req.RequestID}, 'Rejected')">رفض</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
 
       } catch (err) {
         setAlert('managerAlert', err.message || 'خطأ غير متوقع', 'error');
@@ -1124,13 +972,13 @@
     async function managerAddOvertime() {
       if (!currentUser) return;
 
-      const empId = document.getElementById('mgrOtEmployeeSelect').value.trim();
+      const empId = document.getElementById('mgrOtEmployeeId').value.trim();
       const date = document.getElementById('mgrOtDate').value;
       const hours = document.getElementById('mgrOtHours').value;
       const rate = document.getElementById('mgrOtRate').value;
 
       if (!empId || !date || !hours) {
-        setAlert('managerAlert', 'يرجى اختيار الموظف وإدخال التاريخ وعدد الساعات', 'error');
+        setAlert('managerAlert', 'يرجى إدخال رقم الموظف والتاريخ وعدد الساعات', 'error');
         return;
       }
 
@@ -1155,77 +1003,9 @@
         document.getElementById('mgrOtHours').value = '';
         document.getElementById('mgrOtRate').value = '';
         await loadEmployeeDashboard();
-        await loadManagerOvertime();
       } catch (err) {
         setAlert('managerAlert', err.message || 'خطأ غير متوقع', 'error');
       }
-    }
-
-    // تقرير الإضافي لرئيس القسم
-    async function loadManagerOvertime() {
-      if (!currentUser) return;
-      try {
-        const data = await apiCall('getManagerOvertime', {
-          managerId: currentUser.employeeId,
-          pin: currentUser.pin
-        });
-
-        if (!data.ok) {
-          setAlert('managerAlert', data.error || 'فشل تحميل تقرير الإضافي', 'error');
-          return;
-        }
-
-        setAlert('managerAlert', '', '');
-        managerOtCache = data.overtime || [];
-        applyManagerOtFilterAndRender();
-      } catch (err) {
-        setAlert('managerAlert', err.message || 'خطأ غير متوقع', 'error');
-      }
-    }
-
-    function applyManagerOtFilterAndRender() {
-      const month = document.getElementById('mgrOtMonthFilter').value;
-      let list = managerOtCache.slice();
-
-      if (month) {
-        list = list.filter(o => sameYearMonth(o.Date, month));
-      }
-
-      let totalHours = 0;
-      let totalValue = 0;
-      list.forEach(o => {
-        totalHours += Number(o.Hours || 0);
-        totalValue += Number(o.Value || 0);
-      });
-
-      const statsRow = document.getElementById('managerOtStatsRow');
-      statsRow.innerHTML = `
-        <div class="stat-pill"><span>إجمالي الساعات</span><strong>${totalHours}</strong></div>
-        <div class="stat-pill"><span>إجمالي القيمة</span><strong>${totalValue}</strong></div>
-      `;
-
-      const tbody = document.querySelector('#managerOtTable tbody');
-      tbody.innerHTML = '';
-      if (!list.length) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="7">لا توجد بيانات إضافي لهذا الفلتر.</td>`;
-        tbody.appendChild(tr);
-        return;
-      }
-
-      list.forEach((o, i) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${o.OTID}</td>
-          <td>${o.EmployeeName || o.EmployeeID}</td>
-          <td>${o.EmployeeDepartment || ''}</td>
-          <td>${formatDate(o.Date)}</td>
-          <td>${o.Hours}</td>
-          <td>${o.Rate}</td>
-          <td>${o.Value}</td>
-        `;
-        tbody.appendChild(tr);
-      });
     }
 
     async function loadAdminReport() {
@@ -1256,193 +1036,9 @@
             <div class="stat-pill"><span>قيمة الإضافي الإجمالية</span><strong>${s.overtime.totalValue}</strong></div>
           </div>
         `;
-
-        const details = await apiCall('adminDetails', {
-          adminId: currentUser.employeeId,
-          pin: currentUser.pin
-        });
-
-        if (!details.ok) {
-          setAlert('adminAlert', details.error || 'فشل تحميل البيانات التفصيلية', 'error');
-          return;
-        }
-
-        adminDataCache = {
-          employees: details.employees || [],
-          leaves: details.leaves || [],
-          overtime: details.overtime || []
-        };
-
-        buildAdminDeptFilter();
-        applyAdminFiltersAndRender();
-
       } catch (err) {
         setAlert('adminAlert', err.message || 'خطأ غير متوقع', 'error');
       }
-    }
-
-    function buildAdminDeptFilter() {
-      const select = document.getElementById('adminFilterDept');
-      if (!select) return;
-      const set = new Set();
-      adminDataCache.employees.forEach(emp => {
-        if (emp.Department) set.add(emp.Department);
-      });
-      const current = select.value;
-      select.innerHTML = '<option value="">كل الأقسام</option>';
-      Array.from(set).sort().forEach(d => {
-        const opt = document.createElement('option');
-        opt.value = d;
-        opt.textContent = d;
-        select.appendChild(opt);
-      });
-      if (current) select.value = current;
-    }
-
-    function applyAdminFiltersAndRender() {
-      const dept = document.getElementById('adminFilterDept').value;
-      const leaveType = document.getElementById('adminFilterLeaveType').value;
-      const leaveStatus = document.getElementById('adminFilterLeaveStatus').value;
-      const empSearch = document.getElementById('adminFilterEmployee').value.trim().toLowerCase();
-      const otMonth = document.getElementById('adminFilterOtMonth').value;
-
-      // الموظفون
-      let empList = adminDataCache.employees.slice();
-      if (dept) {
-        empList = empList.filter(e => String(e.Department) === String(dept));
-      }
-      if (empSearch) {
-        empList = empList.filter(e =>
-          String(e.Name || '').toLowerCase().includes(empSearch) ||
-          String(e.EmployeeID || '').toLowerCase().includes(empSearch)
-        );
-      }
-      renderAdminEmployeesTable(empList);
-
-      // الإجازات
-      let leaveList = adminDataCache.leaves.slice();
-      if (dept) {
-        leaveList = leaveList.filter(l => String(l.EmployeeDepartment || '') === String(dept));
-      }
-      if (leaveType) {
-        leaveList = leaveList.filter(l => String(l.Type) === String(leaveType));
-      }
-      if (leaveStatus) {
-        leaveList = leaveList.filter(l => String(l.Status) === String(leaveStatus));
-      }
-      if (empSearch) {
-        leaveList = leaveList.filter(l =>
-          String(l.EmployeeName || '').toLowerCase().includes(empSearch) ||
-          String(l.EmployeeID || '').toLowerCase().includes(empSearch)
-        );
-      }
-      renderAdminLeavesTable(leaveList);
-
-      // الإضافي
-      let otList = adminDataCache.overtime.slice();
-      if (dept) {
-        otList = otList.filter(o => String(o.EmployeeDepartment || '') === String(dept));
-      }
-      if (otMonth) {
-        otList = otList.filter(o => sameYearMonth(o.Date, otMonth));
-      }
-      if (empSearch) {
-        otList = otList.filter(o =>
-          String(o.EmployeeName || '').toLowerCase().includes(empSearch) ||
-          String(o.EmployeeID || '').toLowerCase().includes(empSearch)
-        );
-      }
-      renderAdminOTTable(otList);
-    }
-
-    function renderAdminEmployeesTable(list) {
-      const tbody = document.querySelector('#adminEmployeesTable tbody');
-      tbody.innerHTML = '';
-      if (!list.length) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="8">لا توجد بيانات.</td>`;
-        tbody.appendChild(tr);
-        return;
-      }
-      list.forEach((emp, i) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${i + 1}</td>
-          <td>${emp.EmployeeID}</td>
-          <td>${emp.Name}</td>
-          <td>${emp.Department || ''}</td>
-          <td>${emp.Role || ''}</td>
-          <td>${emp.StartDate ? formatDate(emp.StartDate) : ''}</td>
-          <td>${emp.AnnualLeaveDays || 0}</td>
-          <td>${emp.IsActive}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    function renderAdminLeavesTable(list) {
-      const tbody = document.querySelector('#adminLeavesTable tbody');
-      tbody.innerHTML = '';
-      if (!list.length) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="9">لا توجد بيانات.</td>`;
-        tbody.appendChild(tr);
-        return;
-      }
-      list.forEach((lv) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${lv.RequestID}</td>
-          <td>${lv.EmployeeName || lv.EmployeeID}</td>
-          <td>${lv.EmployeeDepartment || ''}</td>
-          <td>${formatDate(lv.StartDate)}</td>
-          <td>${formatDate(lv.EndDate)}</td>
-          <td>${lv.Days}</td>
-          <td>${lv.Type || ''}</td>
-          <td>${lv.Status}</td>
-          <td>${lv.ManagerID || ''}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    function renderAdminOTTable(list) {
-      const tbody = document.querySelector('#adminOTTable tbody');
-      tbody.innerHTML = '';
-
-      let totalHours = 0;
-      let totalValue = 0;
-      list.forEach(o => {
-        totalHours += Number(o.Hours || 0);
-        totalValue += Number(o.Value || 0);
-      });
-
-      const statsRow = document.getElementById('adminOtStatsRow');
-      statsRow.innerHTML = `
-        <div class="stat-pill"><span>إجمالي الساعات (حسب الفلتر)</span><strong>${totalHours}</strong></div>
-        <div class="stat-pill"><span>إجمالي القيمة (حسب الفلتر)</span><strong>${totalValue}</strong></div>
-      `;
-
-      if (!list.length) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="8">لا توجد بيانات.</td>`;
-        tbody.appendChild(tr);
-        return;
-      }
-      list.forEach((ot) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${ot.OTID}</td>
-          <td>${ot.EmployeeName || ot.EmployeeID}</td>
-          <td>${ot.EmployeeDepartment || ''}</td>
-          <td>${formatDate(ot.Date)}</td>
-          <td>${ot.Hours}</td>
-          <td>${ot.Rate}</td>
-          <td>${ot.Value}</td>
-          <td>${ot.ManagerID || ''}</td>
-        `;
-        tbody.appendChild(tr);
-      });
     }
 
     document.addEventListener('DOMContentLoaded', () => {
