@@ -228,7 +228,7 @@
     }
 
     .stat-pill {
-      flex: 1 1 140px;
+      flex: 1 1 120px;
       background: #eff6ff;
       border-radius: 999px;
       padding: 6px 10px;
@@ -368,7 +368,7 @@
 
         <div class="input-group">
           <label>رقم الموظف (EmployeeID)</label>
-          <input type="text" id="loginEmployeeId" placeholder="مثال: A1" />
+          <input type="text" id="loginEmployeeId" placeholder="مثال: A101" />
         </div>
 
         <div class="input-group">
@@ -413,14 +413,6 @@
         <h2 class="card-title">
           لوحة الموظف
           <span class="badge" id="employeeNameBadge"></span>
-          <button
-            type="button"
-            class="btn btn-secondary btn-sm"
-            style="margin-right:auto;"
-            onclick="loadEmployeeDashboard()"
-          >
-            🔄 تحديث البيانات
-          </button>
         </h2>
 
         <div id="employeeAlert" class="alert hidden"></div>
@@ -448,6 +440,7 @@
               <option value="Bereavement2">وفاة (درجة ثانية)</option>
               <option value="Exceptional">استثنائية</option>
               <option value="Holiday">إجازة أعياد / رسمية</option>
+              <option value="HourlyExceptional">ساعية (تُحسب من الاستثنائية)</option>
             </select>
           </div>
           <div class="input-group">
@@ -456,6 +449,9 @@
           </div>
           <button class="btn btn-primary btn-sm" onclick="submitLeave()">
             إرسال طلب الإجازة
+          </button>
+          <button class="btn btn-secondary btn-sm" style="margin-right:6px;" onclick="refreshEmployeeDashboard()">
+            🔄 تحديث البيانات
           </button>
         </div>
 
@@ -525,7 +521,6 @@
                   <th>النوع</th>
                   <th>الرصيد قبل</th>
                   <th>الرصيد بعد</th>
-                  <th>التنبيهات</th>
                   <th>الإجراء</th>
                 </tr>
               </thead>
@@ -536,11 +531,10 @@
 
         <div class="card" style="background:#f9fafb;">
           <h3 class="card-title" style="font-size:0.9rem;">تسجيل إضافي لموظف في القسم</h3>
-
           <div class="input-group">
-            <label>اسم الموظف أو رقم الموظف</label>
+            <label>الموظف</label>
             <select id="mgrOtEmployeeSelect">
-              <option value="">اختر الموظف</option>
+              <option value="">اختر موظفاً</option>
             </select>
           </div>
           <div class="input-group">
@@ -565,29 +559,137 @@
       <div id="adminPanel" class="card hidden">
         <h2 class="card-title">
           لوحة الإدارة
-          <span class="badge">تقرير مختصر</span>
+          <span class="badge">تقرير + بيانات تفصيلية</span>
         </h2>
 
         <button class="btn btn-secondary btn-sm" onclick="loadAdminReport()">
-          تحديث التقرير
+          🔄 تحديث التقرير والبيانات
         </button>
 
         <div id="adminAlert" class="alert hidden" style="margin-top:8px;"></div>
 
+        <!-- ملخص سريع -->
         <div id="adminSummary" style="margin-top:10px;"></div>
 
-        <p style="font-size:0.8rem;color:#6b7280;margin-top:12px;">
-          يمكن توسيع هذه اللوحة لاحقاً لعرض جداول تفصيلية (كل الموظفين، كل الإجازات، كل الإضافي).
-        </p>
+        <!-- فلاتر + جداول تفصيلية -->
+        <div class="card" style="margin-top:12px;background:#f9fafb;">
+          <h3 class="card-title" style="font-size:0.9rem;">البيانات التفصيلية مع الفلاتر</h3>
+
+          <div class="stats-row" style="margin-bottom:10px;">
+            <div class="input-group" style="flex:1 1 150px;">
+              <label>القسم</label>
+              <select id="adminFilterDept">
+                <option value="">كل الأقسام</option>
+              </select>
+            </div>
+            <div class="input-group" style="flex:1 1 150px;">
+              <label>نوع الإجازة</label>
+              <select id="adminFilterLeaveType">
+                <option value="">كل الأنواع</option>
+                <option value="Annual">سنوية</option>
+                <option value="Sick">مرضية</option>
+                <option value="Marriage">زواج</option>
+                <option value="Bereavement1">وفاة (درجة أولى)</option>
+                <option value="Bereavement2">وفاة (درجة ثانية)</option>
+                <option value="Exceptional">استثنائية</option>
+                <option value="Holiday">أعياد / رسمية</option>
+                <option value="HourlyExceptional">ساعية (استثنائية)</option>
+              </select>
+            </div>
+            <div class="input-group" style="flex:1 1 150px;">
+              <label>حالة الإجازة</label>
+              <select id="adminFilterLeaveStatus">
+                <option value="">الكل</option>
+                <option value="Pending">معلّق</option>
+                <option value="Approved">مقبول</option>
+                <option value="Rejected">مرفوض</option>
+              </select>
+            </div>
+            <div class="input-group" style="flex:1 1 150px;">
+              <label>الموظف (بحث)</label>
+              <input type="text" id="adminFilterEmployee" placeholder="اسم أو رقم الموظف" />
+            </div>
+          </div>
+
+          <div class="tabs" id="adminDetailTabs">
+            <button class="tab active" data-target="adminEmployeesTableWrapper">الموظفون</button>
+            <button class="tab" data-target="adminLeavesTableWrapper">الإجازات</button>
+            <button class="tab" data-target="adminOTTableWrapper">الإضافي</button>
+          </div>
+
+          <!-- جدول الموظفين -->
+          <div id="adminEmployeesTableWrapper">
+            <table id="adminEmployeesTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>رقم الموظف</th>
+                  <th>الاسم</th>
+                  <th>القسم</th>
+                  <th>الدور</th>
+                  <th>تاريخ المباشرة</th>
+                  <th>أيام السنوية / سنة</th>
+                  <th>حالة التوظيف</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <!-- جدول الإجازات -->
+          <div id="adminLeavesTableWrapper" class="hidden">
+            <table id="adminLeavesTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>الموظف</th>
+                  <th>القسم</th>
+                  <th>من</th>
+                  <th>إلى</th>
+                  <th>أيام</th>
+                  <th>النوع</th>
+                  <th>الحالة</th>
+                  <th>رئيس القسم</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <!-- جدول الإضافي -->
+          <div id="adminOTTableWrapper" class="hidden">
+            <table id="adminOTTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>الموظف</th>
+                  <th>القسم</th>
+                  <th>التاريخ</th>
+                  <th>الساعات</th>
+                  <th>سعر الساعة</th>
+                  <th>القيمة</th>
+                  <th>أُدخل بواسطة</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+        </div>
       </div>
     </div>
   </div>
 
   <script>
-    // 🔗 رابط الـ Web App الحالي
-    const API_URL = "https://script.google.com/macros/s/AKfycbzYQyJ1vEwv6Thlkup9sYBo9zB0fdRo3BuGY_qk_C4HddH6vKidvAFpfYLMuPNGp60m/exec";
+    // 🔗 رابط الـ Web App من Google Apps Script (ينتهي بـ /exec)
+    const API_URL = "https://script.google.com/macros/s/AKfycbw8aJqPppi_mvUkdQwj9ZBj35oiW4IND1tlQ-Vj5H92ElZf70dv8PXL3jzOLGap4-g/exec";
 
     let currentUser = null;
+    let adminDataCache = {
+      employees: [],
+      leaves: [],
+      overtime: []
+    };
 
     function showView(isLoggedIn) {
       document.getElementById('loginView').classList.toggle('hidden', isLoggedIn);
@@ -668,8 +770,11 @@
         await loadEmployeeDashboard();
 
         if (currentUser.role === 'Manager' || currentUser.role === 'Admin') {
-          loadManagerLeaves();
-          loadManagerEmployees();
+          await loadManagerLeaves();
+        }
+
+        if (currentUser.role === 'Admin') {
+          await loadAdminReport();
         }
 
       } catch (err) {
@@ -685,10 +790,11 @@
     }
 
     function initTabs() {
-      const tabs = document.querySelectorAll('.tab');
-      tabs.forEach(tab => {
+      // Tabs الرئيسية (موظف / رئيس قسم / إدارة)
+      const mainTabs = document.querySelectorAll('#mainTabs .tab');
+      mainTabs.forEach(tab => {
         tab.addEventListener('click', () => {
-          tabs.forEach(t => t.classList.remove('active'));
+          mainTabs.forEach(t => t.classList.remove('active'));
           tab.classList.add('active');
 
           const target = tab.getAttribute('data-target');
@@ -702,17 +808,48 @@
           if (target === 'managerPanel' && currentUser &&
               (currentUser.role === 'Manager' || currentUser.role === 'Admin')) {
             loadManagerLeaves();
-            loadManagerEmployees();
+          }
+          if (target === 'adminPanel' && currentUser && currentUser.role === 'Admin') {
+            loadAdminReport();
+          }
+        });
+      });
+
+      // Tabs داخل لوحة الإدارة (الموظفون / الإجازات / الإضافي)
+      initAdminDetailTabs();
+      setupAdminFilters();
+    }
+
+    function initAdminDetailTabs() {
+      const tabs = document.querySelectorAll('#adminDetailTabs .tab');
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          tabs.forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+
+          ['adminEmployeesTableWrapper','adminLeavesTableWrapper','adminOTTableWrapper'].forEach(id => {
+            document.getElementById(id).classList.add('hidden');
+          });
+          const target = tab.getAttribute('data-target');
+          if (target) {
+            document.getElementById(target).classList.remove('hidden');
           }
         });
       });
     }
 
-    function formatDate(value) {
-      if (!value) return '';
-      const d = new Date(value);
-      if (isNaN(d)) return String(value).split('T')[0] || String(value);
-      return d.toISOString().split('T')[0];
+    function setupAdminFilters() {
+      const ids = ['adminFilterDept','adminFilterLeaveType','adminFilterLeaveStatus'];
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.addEventListener('change', applyAdminFiltersAndRender);
+        }
+      });
+      const empInput = document.getElementById('adminFilterEmployee');
+      if (empInput) {
+        empInput.addEventListener('input', applyAdminFiltersAndRender);
+      }
     }
 
     async function loadEmployeeDashboard() {
@@ -729,14 +866,12 @@
           return;
         }
 
-        const lb = data.leaveBalance || {};
+        const lb = data.leaveBalance || { annual: 0, used: 0, remaining: 0 };
         const statsRow = document.getElementById('leaveStatsRow');
         statsRow.innerHTML = `
-          <div class="stat-pill"><span>السنوية الكاملة</span><strong>${lb.annual || 0}</strong></div>
-          <div class="stat-pill"><span>مستخدم من السنوية</span><strong>${lb.used || 0}</strong></div>
-          <div class="stat-pill"><span>المتبقي من السنوية</span><strong>${lb.remaining || 0}</strong></div>
-          <div class="stat-pill"><span>مرضية: مجانية / من السنوية</span><strong>${lb.sickFree || 0} / ${lb.sickFromAnnual || 0}</strong></div>
-          <div class="stat-pill"><span>استثنائية/ساعية: مجانية / من السنوية</span><strong>${lb.exceptionalFree || 0} / ${lb.exceptionalFromAnnual || 0}</strong></div>
+          <div class="stat-pill"><span>رصيد هذه السنة</span><strong>${lb.annual}</strong></div>
+          <div class="stat-pill"><span>المستخدم (من السنوية)</span><strong>${lb.used}</strong></div>
+          <div class="stat-pill"><span>المتبقي حتى نهاية السنة</span><strong>${lb.remaining}</strong></div>
         `;
 
         const leaveTbody = document.querySelector('#leaveTable tbody');
@@ -786,6 +921,17 @@
       }
     }
 
+    function refreshEmployeeDashboard() {
+      loadEmployeeDashboard();
+    }
+
+    function formatDate(value) {
+      if (!value) return '';
+      const d = new Date(value);
+      if (isNaN(d)) return String(value).split('T')[0] || String(value);
+      return d.toISOString().split('T')[0];
+    }
+
     async function submitLeave() {
       if (!currentUser) return;
 
@@ -815,9 +961,10 @@
         }
 
         let msg = 'تم إرسال طلب الإجازة بنجاح (رقم الطلب: ' + data.requestId + ')';
-        if (data.policyWarningsText) {
-          msg += ' – تنبيهات السياسة: ' + data.policyWarningsText;
+        if (data.warning) {
+          msg += ' – ملاحظة: ' + data.warning;
         }
+
         setAlert('employeeAlert', msg, 'success');
         document.getElementById('leaveComment').value = '';
         await loadEmployeeDashboard();
@@ -851,31 +998,41 @@
 
         if (!data.leaves || data.leaves.length === 0) {
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td colspan="11">لا توجد طلبات معلّقة حالياً.</td>`;
+          tr.innerHTML = `<td colspan="10">لا توجد طلبات معلّقة حالياً.</td>`;
           tbody.appendChild(tr);
-          return;
+        } else {
+          data.leaves.forEach(req => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${req.RequestID}</td>
+              <td>${req.EmployeeName || req.EmployeeID}</td>
+              <td>${req.EmployeeDepartment || ''}</td>
+              <td>${formatDate(req.StartDate)}</td>
+              <td>${formatDate(req.EndDate)}</td>
+              <td>${req.Days}</td>
+              <td>${req.Type || ''}</td>
+              <td>${req.BalanceBefore != null ? req.BalanceBefore : ''}</td>
+              <td>${req.BalanceAfter != null ? req.BalanceAfter : ''}</td>
+              <td>
+                <button class="btn btn-sm btn-primary" onclick="managerDecision(${req.RequestID}, 'Approved')">موافقة</button>
+                <button class="btn btn-sm btn-secondary" onclick="managerDecision(${req.RequestID}, 'Rejected')">رفض</button>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
         }
 
-        data.leaves.forEach(req => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${req.RequestID}</td>
-            <td>${req.EmployeeName || req.EmployeeID}</td>
-            <td>${req.EmployeeDepartment || ''}</td>
-            <td>${formatDate(req.StartDate)}</td>
-            <td>${formatDate(req.EndDate)}</td>
-            <td>${req.Days}</td>
-            <td>${req.Type || ''}</td>
-            <td>${req.AnnualRemainingBefore ?? ''}</td>
-            <td>${req.AnnualRemainingAfter ?? ''}</td>
-            <td style="max-width:200px;">${req.PolicyWarningsText || ''}</td>
-            <td>
-              <button class="btn btn-sm btn-primary" onclick="managerDecision(${req.RequestID}, 'Approved')">موافقة</button>
-              <button class="btn btn-sm btn-secondary" onclick="managerDecision(${req.RequestID}, 'Rejected')">رفض</button>
-            </td>
-          `;
-          tbody.appendChild(tr);
-        });
+        // تعبئة قائمة موظفي القسم في الإضافي
+        const select = document.getElementById('mgrOtEmployeeSelect');
+        if (select && data.managerEmployees) {
+          select.innerHTML = '<option value="">اختر موظفاً</option>';
+          data.managerEmployees.forEach(emp => {
+            const opt = document.createElement('option');
+            opt.value = emp.EmployeeID;
+            opt.textContent = `${emp.Name} – ${emp.EmployeeID}`;
+            select.appendChild(opt);
+          });
+        }
 
       } catch (err) {
         setAlert('managerAlert', err.message || 'خطأ غير متوقع', 'error');
@@ -909,40 +1066,10 @@
       }
     }
 
-    async function loadManagerEmployees() {
-      if (!currentUser) return;
-      try {
-        const data = await apiCall('getManagerEmployees', {
-          managerId: currentUser.employeeId,
-          pin: currentUser.pin
-        });
-
-        if (!data.ok) {
-          console.error('Failed to load manager employees:', data.error);
-          return;
-        }
-
-        const select = document.getElementById('mgrOtEmployeeSelect');
-        if (!select) return;
-
-        select.innerHTML = '<option value="">اختر الموظف</option>';
-
-        (data.employees || []).forEach(emp => {
-          const opt = document.createElement('option');
-          opt.value = emp.EmployeeID;
-          opt.textContent = `${emp.Name} – ${emp.EmployeeID}`;
-          select.appendChild(opt);
-        });
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
     async function managerAddOvertime() {
       if (!currentUser) return;
 
-      const empSelect = document.getElementById('mgrOtEmployeeSelect');
-      const empId = empSelect ? empSelect.value.trim() : '';
+      const empId = document.getElementById('mgrOtEmployeeSelect').value.trim();
       const date = document.getElementById('mgrOtDate').value;
       const hours = document.getElementById('mgrOtHours').value;
       const rate = document.getElementById('mgrOtRate').value;
@@ -993,9 +1120,7 @@
 
         setAlert('adminAlert', '', '');
         const s = data.summary;
-        const d = s.leaveDetails || {};
         const div = document.getElementById('adminSummary');
-
         div.innerHTML = `
           <div class="stats-row">
             <div class="stat-pill"><span>عدد الموظفين</span><strong>${s.totalEmployees}</strong></div>
@@ -1003,36 +1128,181 @@
             <div class="stat-pill"><span>طلبات مقبولة</span><strong>${s.leave.approved}</strong></div>
             <div class="stat-pill"><span>طلبات مرفوضة</span><strong>${s.leave.rejected}</strong></div>
           </div>
-
           <div class="stats-row">
             <div class="stat-pill"><span>ساعات الإضافي الإجمالية</span><strong>${s.overtime.totalHours}</strong></div>
             <div class="stat-pill"><span>قيمة الإضافي الإجمالية</span><strong>${s.overtime.totalValue}</strong></div>
           </div>
-
-          <div class="stats-row">
-            <div class="stat-pill"><span>مجموع أيام الإجازات المقبولة</span><strong>${d.totalApprovedDays || 0}</strong></div>
-            <div class="stat-pill"><span>سنوية مستخدمة</span><strong>${d.annualDaysUsed || 0}</strong></div>
-            <div class="stat-pill"><span>مرضية</span><strong>${d.sickDaysUsed || 0}</strong></div>
-            <div class="stat-pill"><span>استثنائية / ساعية</span><strong>${d.exceptionalDaysUsed || 0}</strong></div>
-          </div>
-
-          <div class="stats-row">
-            <div class="stat-pill"><span>زواج</span><strong>${d.marriageDaysUsed || 0}</strong></div>
-            <div class="stat-pill"><span>وفاة درجة أولى</span><strong>${d.bereavement1DaysUsed || 0}</strong></div>
-            <div class="stat-pill"><span>وفاة درجة ثانية</span><strong>${d.bereavement2DaysUsed || 0}</strong></div>
-            <div class="stat-pill"><span>أعياد / رسمية</span><strong>${d.holidayDaysUsed || 0}</strong></div>
-          </div>
-
-          <div class="stats-row">
-            <div class="stat-pill">
-              <span>عدد الموظفين برصيد سنوي سالب</span>
-              <strong>${s.employeesWithNegativeAnnual || 0}</strong>
-            </div>
-          </div>
         `;
+
+        // جلب البيانات التفصيلية مرة واحدة وتخزينها في الكاش
+        const details = await apiCall('adminDetails', {
+          adminId: currentUser.employeeId,
+          pin: currentUser.pin
+        });
+
+        if (!details.ok) {
+          setAlert('adminAlert', details.error || 'فشل تحميل البيانات التفصيلية', 'error');
+          return;
+        }
+
+        adminDataCache = {
+          employees: details.employees || [],
+          leaves: details.leaves || [],
+          overtime: details.overtime || []
+        };
+
+        buildAdminDeptFilter();
+        applyAdminFiltersAndRender();
+
       } catch (err) {
         setAlert('adminAlert', err.message || 'خطأ غير متوقع', 'error');
       }
+    }
+
+    function buildAdminDeptFilter() {
+      const select = document.getElementById('adminFilterDept');
+      if (!select) return;
+      const set = new Set();
+      adminDataCache.employees.forEach(emp => {
+        if (emp.Department) set.add(emp.Department);
+      });
+      const current = select.value;
+      select.innerHTML = '<option value="">كل الأقسام</option>';
+      Array.from(set).sort().forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d;
+        opt.textContent = d;
+        select.appendChild(opt);
+      });
+      if (current) select.value = current;
+    }
+
+    function applyAdminFiltersAndRender() {
+      const dept = document.getElementById('adminFilterDept').value;
+      const leaveType = document.getElementById('adminFilterLeaveType').value;
+      const leaveStatus = document.getElementById('adminFilterLeaveStatus').value;
+      const empSearch = document.getElementById('adminFilterEmployee').value.trim().toLowerCase();
+
+      // الموظفون
+      let empList = adminDataCache.employees.slice();
+      if (dept) {
+        empList = empList.filter(e => String(e.Department) === String(dept));
+      }
+      if (empSearch) {
+        empList = empList.filter(e =>
+          String(e.Name || '').toLowerCase().includes(empSearch) ||
+          String(e.EmployeeID || '').toLowerCase().includes(empSearch)
+        );
+      }
+      renderAdminEmployeesTable(empList);
+
+      // الإجازات
+      let leaveList = adminDataCache.leaves.slice();
+      if (dept) {
+        leaveList = leaveList.filter(l => String(l.EmployeeDepartment || '') === String(dept));
+      }
+      if (leaveType) {
+        leaveList = leaveList.filter(l => String(l.Type) === String(leaveType));
+      }
+      if (leaveStatus) {
+        leaveList = leaveList.filter(l => String(l.Status) === String(leaveStatus));
+      }
+      if (empSearch) {
+        leaveList = leaveList.filter(l =>
+          String(l.EmployeeName || '').toLowerCase().includes(empSearch) ||
+          String(l.EmployeeID || '').toLowerCase().includes(empSearch)
+        );
+      }
+      renderAdminLeavesTable(leaveList);
+
+      // الإضافي
+      let otList = adminDataCache.overtime.slice();
+      if (dept) {
+        otList = otList.filter(o => String(o.EmployeeDepartment || '') === String(dept));
+      }
+      if (empSearch) {
+        otList = otList.filter(o =>
+          String(o.EmployeeName || '').toLowerCase().includes(empSearch) ||
+          String(o.EmployeeID || '').toLowerCase().includes(empSearch)
+        );
+      }
+      renderAdminOTTable(otList);
+    }
+
+    function renderAdminEmployeesTable(list) {
+      const tbody = document.querySelector('#adminEmployeesTable tbody');
+      tbody.innerHTML = '';
+      if (!list.length) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="8">لا توجد بيانات.</td>`;
+        tbody.appendChild(tr);
+        return;
+      }
+      list.forEach((emp, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${i + 1}</td>
+          <td>${emp.EmployeeID}</td>
+          <td>${emp.Name}</td>
+          <td>${emp.Department || ''}</td>
+          <td>${emp.Role || ''}</td>
+          <td>${emp.StartDate ? formatDate(emp.StartDate) : ''}</td>
+          <td>${emp.AnnualLeaveDays || 0}</td>
+          <td>${emp.IsActive}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderAdminLeavesTable(list) {
+      const tbody = document.querySelector('#adminLeavesTable tbody');
+      tbody.innerHTML = '';
+      if (!list.length) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="9">لا توجد بيانات.</td>`;
+        tbody.appendChild(tr);
+        return;
+      }
+      list.forEach((lv, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${lv.RequestID}</td>
+          <td>${lv.EmployeeName || lv.EmployeeID}</td>
+          <td>${lv.EmployeeDepartment || ''}</td>
+          <td>${formatDate(lv.StartDate)}</td>
+          <td>${formatDate(lv.EndDate)}</td>
+          <td>${lv.Days}</td>
+          <td>${lv.Type || ''}</td>
+          <td>${lv.Status}</td>
+          <td>${lv.ManagerID || ''}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderAdminOTTable(list) {
+      const tbody = document.querySelector('#adminOTTable tbody');
+      tbody.innerHTML = '';
+      if (!list.length) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="8">لا توجد بيانات.</td>`;
+        tbody.appendChild(tr);
+        return;
+      }
+      list.forEach((ot, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${ot.OTID}</td>
+          <td>${ot.EmployeeName || ot.EmployeeID}</td>
+          <td>${ot.EmployeeDepartment || ''}</td>
+          <td>${formatDate(ot.Date)}</td>
+          <td>${ot.Hours}</td>
+          <td>${ot.Rate}</td>
+          <td>${ot.Value}</td>
+          <td>${ot.ManagerID || ''}</td>
+        `;
+        tbody.appendChild(tr);
+      });
     }
 
     document.addEventListener('DOMContentLoaded', () => {
