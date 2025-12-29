@@ -5,6 +5,10 @@
   <title>نظام إدارة الموظفين - جي ستور</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
+  <!-- 🆕 أيقونة الموقع (favicon) -->
+  <link rel="icon" type="image/png"
+        href="https://www.gstoreq8.com/images/logos/257/65663_skih-0y_2pg7-e4__1_.png">
+
   <style>
     :root {
       --primary: #0d6efd;
@@ -41,6 +45,22 @@
     .app-header h1 {
       margin: 0;
       font-size: 1.2rem;
+    }
+
+    /* 🆕 مجموعة الهيدر + الشعار */
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .app-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      object-fit: cover;
+      background: #ffffff;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.3);
     }
 
     .user-info-small {
@@ -381,6 +401,16 @@
       cursor: pointer;
     }
 
+    /* 🆕 شعار شاشة تسجيل الدخول */
+    .login-logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 999px;
+      object-fit: cover;
+      background: #ffffff;
+      box-shadow: 0 4px 10px rgba(37, 99, 235, 0.6);
+    }
+
     @media (max-width: 600px) {
       .app-header h1 {
         font-size: 0.95rem;
@@ -402,9 +432,12 @@
             <h2 class="login-title">نظام إدارة الموظفين - جي ستور</h2>
             <div class="login-sub">إجازات – إضافي – تقارير</div>
           </div>
-          <div style="width:40px;height:40px;border-radius:999px;background:linear-gradient(135deg,#0ea5e9,#2563eb);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:0.9rem;box-shadow:0 6px 16px rgba(37,99,235,0.6);">
-            HR
-          </div>
+          <!-- 🆕 شعار الشركة بدل دائرة HR -->
+          <img
+            src="https://www.gstoreq8.com/images/logos/257/65663_skih-0y_2pg7-e4__1_.png"
+            alt="شعار جي ستور"
+            class="login-logo"
+          />
         </div>
 
         <div class="pill-outline">
@@ -438,7 +471,15 @@
   <!-- واجهة التطبيق الرئيسية -->
   <div id="appView" class="hidden">
     <header class="app-header">
-      <h1> نظام إدارة الموظفين - شركة جي ستور</h1>
+      <div class="header-left">
+        <!-- 🆕 شعار في الهيدر -->
+        <img
+          src="https://www.gstoreq8.com/images/logos/257/65663_skih-0y_2pg7-e4__1_.png"
+          alt="شعار جي ستور"
+          class="app-logo"
+        />
+        <h1> نظام إدارة الموظفين - شركة جي ستور</h1>
+      </div>
       <div>
         <div class="user-info-small" id="headerUserInfo"></div>
         <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
@@ -1740,7 +1781,7 @@
 
       if (rows.length === 0) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="7">لا توجد بيانات لهذا الفلتر.</td>`;
+        tr.innerHTML = `<td colspan="7">لا توجد سجلات إضافي لهذا الفلتر.</td>`;
         tbody.appendChild(tr);
       }
     }
