@@ -54,14 +54,16 @@
       gap: 10px;
     }
 
-    .app-logo {
-      width: 40px;
-      height: 40px;
-      border-radius: 999px;
-      object-fit: cover;
-      background: #ffffff;
-      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.3);
-    }
+.app-logo {
+  width: 42px;        /* زيادة بسيطة تساعد بظهور الشعار كامل */
+  height: 42px;
+  border-radius: 12px; /* ليس دائرة — لأن شعارك مستطيل وليس مربع */
+  object-fit: contain; /* المهم */
+  background: #ffffff;
+  padding: 3px;        /* لإعطاء مساحة داخلية حول الشعار */
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.3);
+}
+
 
     .user-info-small {
       font-size: 0.75rem;
@@ -402,14 +404,16 @@
     }
 
     /* 🆕 شعار شاشة تسجيل الدخول */
-    .login-logo {
-      width: 48px;
-      height: 48px;
-      border-radius: 999px;
-      object-fit: cover;
-      background: #ffffff;
-      box-shadow: 0 4px 10px rgba(37, 99, 235, 0.6);
-    }
+.login-logo {
+  width: 55px;
+  height: 55px;
+  border-radius: 12px;
+  object-fit: contain;
+  background: #ffffff;
+  padding: 4px;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.6);
+}
+
 
     @media (max-width: 600px) {
       .app-header h1 {
