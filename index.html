@@ -345,7 +345,7 @@
       margin-bottom: 0;
     }
 
-    /* 🆕 Overlay واجهة الطلبات العامة */
+    /* Overlay مشترك */
     .overlay {
       position: fixed;
       inset: 0;
@@ -824,7 +824,7 @@
     </div>
   </div>
 
-  <!-- 🆕 واجهة الطلبات العامة (Overlay مشترك للموظف والإدارة) -->
+  <!-- واجهة الطلبات العامة (Overlay مشترك للموظف والإدارة) -->
   <div id="requestsOverlay" class="overlay hidden">
     <div class="overlay-card">
       <div class="overlay-header">
@@ -941,24 +941,46 @@
     </div>
   </div>
 
+  <!-- 🆕 مودال تفاصيل الطلب للإدارة -->
+  <div id="requestDetailsModal" class="overlay hidden">
+    <div class="overlay-card" style="max-width:700px;">
+      <div class="overlay-header">
+        <h3 style="margin:0;font-size:1rem;">تفاصيل الطلب</h3>
+        <button class="overlay-close" onclick="closeRequestDetails()">✕</button>
+      </div>
+
+      <div id="requestDetailsContent" style="font-size:0.85rem;margin-bottom:10px;"></div>
+
+      <div class="input-group">
+        <label>رد الإدارة</label>
+        <textarea id="adminReplyInput" rows="3" placeholder="اكتب رد الإدارة هنا..."></textarea>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary btn-sm" onclick="saveAdminRequestAction('Approved')">موافقة</button>
+        <button class="btn btn-secondary btn-sm" onclick="saveAdminRequestAction('Rejected')">رفض</button>
+        <button class="btn btn-secondary btn-sm" onclick="saveAdminRequestAction('replyOnly')">حفظ الرد فقط</button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    // 🟦 رابط الـ Web App من Google Apps Script
+    // رابط الـ Web App
     const API_URL = "https://script.google.com/macros/s/AKfycbx9A4Caw74lGgJkld6iHSB1rj3eY5od9L9pxBw51BwCu4MY3wKQnaeJCaP8P8QSN-p8/exec";
 
     let currentUser = null;
-    let employeeOTRecords = [];     // سجلات الإضافي للموظف الحالي
+    let employeeOTRecords = [];
+    let managerEmployeesList = [];
+    let managerOvertimeRecords = [];
 
-    let managerEmployeesList = [];  // موظفو قسم المدير (Dropdown)
-    let managerOvertimeRecords = []; // تقرير الإضافي لرئيس القسم
-
-    // بيانات الأدمن التفصيلية
     let adminEmployees = [];
     let adminLeaves = [];
     let adminOvertime = [];
 
-    // 🆕 بيانات الطلبات العامة
+    // الطلبات العامة
     let employeeRequests = [];
     let adminRequests = [];
+    let currentOpenedRequestId = null; // 🆕 للـ Modal
 
     function showView(isLoggedIn) {
       document.getElementById('loginView').classList.toggle('hidden', isLoggedIn);
@@ -1908,8 +1930,9 @@
           <td><span class="status-badge ${statusClass}">${r.Status || ''}</span></td>
           <td>${formatDate(r.CreatedAt)}</td>
           <td>
-            <button class="btn btn-sm btn-primary" onclick="adminDecisionRequest(${r.RequestID}, 'Approved')">موافقة</button>
-            <button class="btn btn-sm btn-secondary" onclick="adminDecisionRequest(${r.RequestID}, 'Rejected')">رفض</button>
+            <button class="btn btn-sm btn-primary" onclick="openRequestDetails(${r.RequestID})">
+              تفاصيل
+            </button>
           </td>
         `;
         tbody.appendChild(tr);
@@ -1922,25 +1945,74 @@
       }
     }
 
-    async function adminDecisionRequest(requestId, status) {
-      if (!currentUser || currentUser.role !== 'Admin') return;
-      const reply = prompt('اكتب رد الإدارة / الملاحظة (اختياري):', '');
+    // 🆕 فتح/إغلاق المودال + حفظ قرار الإدارة
+    function openRequestDetails(requestId) {
+      currentOpenedRequestId = requestId;
+      const r = adminRequests.find(x => Number(x.RequestID) === Number(requestId));
+      if (!r) return;
+
+      const html = `
+        <table style="width:100%;font-size:0.85rem;border-collapse:collapse;">
+          <tr><td style="text-align:right;padding:3px 4px;"><b>رقم الطلب:</b></td><td style="text-align:right;padding:3px 4px;">${r.RequestID}</td></tr>
+          <tr><td><b>الموظف:</b></td><td>${r.EmployeeName || ''} (${r.EmployeeID || ''})</td></tr>
+          <tr><td><b>القسم:</b></td><td>${r.EmployeeDepartment || ''}</td></tr>
+          <tr><td><b>النوع:</b></td><td>${r.Type || ''}</td></tr>
+          <tr><td><b>العنوان:</b></td><td>${r.Subject || ''}</td></tr>
+          <tr><td><b>الوصف:</b></td><td>${r.Description || ''}</td></tr>
+          <tr><td><b>المبلغ:</b></td><td>${r.Amount || ''}</td></tr>
+          <tr><td><b>التقسيط:</b></td><td>${r.Installment || ''}</td></tr>
+          <tr><td><b>التدريب:</b></td><td>${r.Training || ''}</td></tr>
+          <tr><td><b>القسم المطلوب للتحويل:</b></td><td>${r.TransferDept || ''}</td></tr>
+          <tr><td><b>الحالة الحالية:</b></td><td>${r.Status || ''}</td></tr>
+          <tr><td><b>تاريخ الإنشاء:</b></td><td>${formatDate(r.CreatedAt)}</td></tr>
+          <tr><td><b>تاريخ القرار:</b></td><td>${r.DecisionAt || ''}</td></tr>
+          <tr><td><b>الإداري:</b></td><td>${r.AdminID || ''}</td></tr>
+          <tr><td><b>رد الإدارة السابق:</b></td><td>${r.AdminReply || ''}</td></tr>
+        </table>
+      `;
+      document.getElementById('requestDetailsContent').innerHTML = html;
+      document.getElementById('adminReplyInput').value = r.AdminReply || '';
+      document.getElementById('requestDetailsModal').classList.remove('hidden');
+    }
+
+    function closeRequestDetails() {
+      document.getElementById('requestDetailsModal').classList.add('hidden');
+      currentOpenedRequestId = null;
+    }
+
+    async function saveAdminRequestAction(actionType) {
+      if (!currentUser || currentUser.role !== 'Admin' || !currentOpenedRequestId) return;
+
+      const r = adminRequests.find(x => Number(x.RequestID) === Number(currentOpenedRequestId));
+      if (!r) return;
+
+      let statusToSend = r.Status || 'Pending';
+      if (actionType === 'Approved' || actionType === 'Rejected') {
+        statusToSend = actionType;
+      }
+
+      const reply = document.getElementById('adminReplyInput').value || '';
+
       try {
         const res = await apiCall('adminUpdateRequest', {
           adminId: currentUser.employeeId,
           pin: currentUser.pin,
-          requestId,
-          status,
-          reply: reply || ''
+          requestId: currentOpenedRequestId,
+          status: statusToSend,
+          reply
         });
+
         if (!res.ok) {
-          setReqAlert('reqAdminAlert', res.error || 'فشل تحديث الطلب', 'error');
+          alert('فشل حفظ التعديل: ' + (res.error || ''));
           return;
         }
-        setReqAlert('reqAdminAlert', 'تم تحديث حالة الطلب بنجاح.', 'success');
+
+        alert('تم حفظ التعديلات بنجاح.');
+        closeRequestDetails();
         await loadAdminRequests();
+        await loadEmployeeRequests(); // لو الموظف فاتح واجهته
       } catch (err) {
-        setReqAlert('reqAdminAlert', err.message || 'خطأ غير متوقع', 'error');
+        alert('خطأ غير متوقع: ' + (err.message || err));
       }
     }
 
