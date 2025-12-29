@@ -345,6 +345,42 @@
       margin-bottom: 0;
     }
 
+    /* 🆕 Overlay واجهة الطلبات العامة */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+
+    .overlay-card {
+      background: #ffffff;
+      border-radius: 18px;
+      max-width: 800px;
+      width: 95%;
+      max-height: 90vh;
+      overflow: auto;
+      padding: 16px;
+      box-shadow: 0 15px 35px rgba(15,23,42,0.35);
+    }
+
+    .overlay-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .overlay-close {
+      border: none;
+      background: transparent;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+
     @media (max-width: 600px) {
       .app-header h1 {
         font-size: 0.95rem;
@@ -393,7 +429,7 @@
         </button>
 
         <div class="login-footer">
-        نظام إدارة الموظفين - جي ستور   
+          نظام إدارة الموظفين - جي ستور
         </div>
       </div>
     </div>
@@ -432,9 +468,14 @@
         <!-- رصيد الإجازات -->
         <div class="stats-row" id="leaveStatsRow"></div>
 
-        <!-- زر تحديث لوحة الموظف -->
-        <div style="margin:6px 0 12px;">
-          <button class="btn btn-secondary btn-sm" onclick="loadEmployeeDashboard()">تحديث البيانات</button>
+        <!-- أزرار لوحة الموظف -->
+        <div style="margin:6px 0 12px; display:flex; gap:6px; flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-sm" onclick="loadEmployeeDashboard()">
+            تحديث البيانات
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="openEmployeeRequests()">
+            طلبات أخرى (زيادة راتب / نقل / تدريب)
+          </button>
         </div>
 
         <!-- طلب إجازة جديدة -->
@@ -495,7 +536,6 @@
         <div class="card" style="margin-top:12px;">
           <h3 class="card-title" style="font-size:0.9rem;">ساعات الإضافي الخاصة بك</h3>
 
-          <!-- فلتر شهر الإضافي -->
           <div class="input-group" style="max-width:220px;">
             <label>تصفية الإضافي حسب الشهر</label>
             <select id="otMonthFilter" onchange="renderEmployeeOvertimeTable()">
@@ -503,7 +543,6 @@
             </select>
           </div>
 
-          <!-- إجماليات الإضافي حسب الفلتر -->
           <div class="stats-row" id="otStatsRow"></div>
 
           <div class="table-wrapper">
@@ -558,7 +597,7 @@
           </div>
         </div>
 
-        <!-- تسجيل إضافي لموظفي القسم (Dropdown) -->
+        <!-- تسجيل إضافي لموظفي القسم -->
         <div class="card" style="background:#f9fafb;margin-bottom:14px;">
           <h3 class="card-title" style="font-size:0.9rem;">تسجيل إضافي لموظف في القسم</h3>
 
@@ -626,11 +665,16 @@
           <span class="badge">تقرير مختصر + تفاصيل</span>
         </h2>
 
-        <button class="btn btn-secondary btn-sm" onclick="loadAdminReport()">
-          تحديث التقارير
-        </button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
+          <button class="btn btn-secondary btn-sm" onclick="loadAdminReport()">
+            تحديث التقارير
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="openAdminRequests()">
+            واجهة طلبات الموظفين
+          </button>
+        </div>
 
-        <div id="adminAlert" class="alert hidden" style="margin-top:8px;"></div>
+        <div id="adminAlert" class="alert hidden" style="margin-top:0;"></div>
 
         <!-- ملخص عام -->
         <div id="adminSummary" style="margin-top:10px;"></div>
@@ -780,20 +824,141 @@
     </div>
   </div>
 
+  <!-- 🆕 واجهة الطلبات العامة (Overlay مشترك للموظف والإدارة) -->
+  <div id="requestsOverlay" class="overlay hidden">
+    <div class="overlay-card">
+      <div class="overlay-header">
+        <h3 style="margin:0;font-size:1rem;">واجهة الطلبات العامة</h3>
+        <button class="overlay-close" onclick="closeRequestsOverlay()">✕</button>
+      </div>
+
+      <!-- جزء الموظف -->
+      <div id="requestsEmployeeView">
+        <p style="font-size:0.8rem;color:#6b7280;margin-bottom:8px;">
+          يمكنك تقديم طلبات مثل: زيادة راتب، نقل، تدريب، سلفة، أو أي طلب إداري آخر.
+        </p>
+
+        <div class="card" style="margin-bottom:12px;background:#f9fafb;">
+          <h4 class="card-title" style="font-size:0.85rem;">إنشاء طلب جديد</h4>
+
+          <div class="input-group">
+            <label>نوع الطلب</label>
+            <select id="reqType">
+              <option value="SalaryRaise">زيادة راتب</option>
+              <option value="Transfer">نقل قسم</option>
+              <option value="Training">طلب تدريب</option>
+              <option value="Loan">سلفة / قرض</option>
+              <option value="Other">طلب آخر</option>
+            </select>
+          </div>
+
+          <div class="input-group">
+            <label>عنوان مختصر للطلب</label>
+            <input type="text" id="reqSubject" placeholder="مثال: طلب زيادة راتب / نقل إلى قسم اللوجستيك" />
+          </div>
+
+          <div class="input-group">
+            <label>شرح الطلب</label>
+            <textarea id="reqDescription" rows="3" placeholder="اكتب تفاصيل الطلب باختصار"></textarea>
+          </div>
+
+          <div class="stats-row">
+            <div class="input-group" style="flex:1 1 120px;">
+              <label>المبلغ (إن وجد)</label>
+              <input type="number" id="reqAmount" step="1" placeholder="مثال: 200000" />
+            </div>
+            <div class="input-group" style="flex:1 1 120px;">
+              <label>عدد الأقساط (إن وجد)</label>
+              <input type="number" id="reqInstallment" step="1" />
+            </div>
+          </div>
+
+          <div class="stats-row">
+            <div class="input-group" style="flex:1 1 160px;">
+              <label>تفاصيل التدريب (إن كان الطلب تدريب)</label>
+              <input type="text" id="reqTraining" placeholder="اسم الدورة / الجهة" />
+            </div>
+            <div class="input-group" style="flex:1 1 160px;">
+              <label>القسم المطلوب النقل إليه</label>
+              <input type="text" id="reqTransferDept" placeholder="مثال: اللوجستيك، المبيعات" />
+            </div>
+          </div>
+
+          <button class="btn btn-primary btn-sm" onclick="submitEmployeeRequest()">
+            إرسال الطلب
+          </button>
+          <div id="reqEmployeeAlert" class="alert hidden" style="margin-top:8px;"></div>
+        </div>
+
+        <div class="card" style="background:#fff;">
+          <h4 class="card-title" style="font-size:0.85rem;">طلباتك السابقة</h4>
+          <div class="table-wrapper">
+            <table id="employeeReqTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>النوع</th>
+                  <th>العنوان</th>
+                  <th>الحالة</th>
+                  <th>تاريخ الإنشاء</th>
+                  <th>رد الإدارة</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- جزء الإدارة -->
+      <div id="requestsAdminView" class="hidden">
+        <p style="font-size:0.8rem;color:#6b7280;margin-bottom:8px;">
+          هذه الصفحة مخصصة للإدارة لمراجعة جميع الطلبات والرد عليها.
+        </p>
+
+        <div class="card" style="background:#f9fafb;">
+          <h4 class="card-title" style="font-size:0.85rem;">جميع طلبات الموظفين</h4>
+          <div class="table-wrapper">
+            <table id="adminReqTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>الموظف</th>
+                  <th>القسم</th>
+                  <th>النوع</th>
+                  <th>العنوان</th>
+                  <th>الحالة</th>
+                  <th>تاريخ الإنشاء</th>
+                  <th>إجراء</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div id="reqAdminAlert" class="alert hidden" style="margin-top:8px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     // 🟦 رابط الـ Web App من Google Apps Script
-const API_URL = "https://script.google.com/macros/s/AKfycbzwMpYW-VxosKRHzuXUOBxMcB1w9z9YvqKgp6-23j3CDrCt7Ri1joEdKCRfkAYRgiJK/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbx9A4Caw74lGgJkld6iHSB1rj3eY5od9L9pxBw51BwCu4MY3wKQnaeJCaP8P8QSN-p8/exec";
 
     let currentUser = null;
     let employeeOTRecords = [];     // سجلات الإضافي للموظف الحالي
 
-    let managerEmployeesList = [];  // موظفو قسم المدير (لاختيارهم في Dropdown)
+    let managerEmployeesList = [];  // موظفو قسم المدير (Dropdown)
     let managerOvertimeRecords = []; // تقرير الإضافي لرئيس القسم
 
     // بيانات الأدمن التفصيلية
     let adminEmployees = [];
     let adminLeaves = [];
     let adminOvertime = [];
+
+    // 🆕 بيانات الطلبات العامة
+    let employeeRequests = [];
+    let adminRequests = [];
 
     function showView(isLoggedIn) {
       document.getElementById('loginView').classList.toggle('hidden', isLoggedIn);
@@ -1045,7 +1210,6 @@ const API_URL = "https://script.google.com/macros/s/AKfycbzwMpYW-VxosKRHzuXUOBxM
           leaveTbody.appendChild(tr);
         });
 
-        // 🟦 تحديث سجلات الإضافي + الفلتر
         employeeOTRecords = data.overtime.records || [];
         populateOTMonthFilter();
         renderEmployeeOvertimeTable();
@@ -1117,7 +1281,6 @@ const API_URL = "https://script.google.com/macros/s/AKfycbzwMpYW-VxosKRHzuXUOBxM
       if (!currentUser) return;
 
       try {
-        // أولاً: طلبات الإجازة + قائمة موظفي القسم
         const data = await apiCall('getManagerLeaves', {
           managerId: currentUser.employeeId,
           pin: currentUser.pin
@@ -1160,11 +1323,9 @@ const API_URL = "https://script.google.com/macros/s/AKfycbzwMpYW-VxosKRHzuXUOBxM
           });
         }
 
-        // حفظ قائمة موظفي القسم لاستخدامها في Dropdown الإضافي
         managerEmployeesList = data.managerEmployees || [];
         populateManagerEmployeesSelect();
 
-        // ثانياً: تحميل تقرير الإضافي للقسم
         await loadManagerOvertime();
 
       } catch (err) {
@@ -1333,7 +1494,6 @@ const API_URL = "https://script.google.com/macros/s/AKfycbzwMpYW-VxosKRHzuXUOBxM
     async function loadAdminReport() {
       if (!currentUser) return;
       try {
-        // ملخص سريع
         const rep = await apiCall('adminReport', {
           adminId: currentUser.employeeId,
           pin: currentUser.pin
@@ -1360,7 +1520,6 @@ const API_URL = "https://script.google.com/macros/s/AKfycbzwMpYW-VxosKRHzuXUOBxM
           </div>
         `;
 
-        // بيانات تفصيلية
         const det = await apiCall('adminDetails', {
           adminId: currentUser.employeeId,
           pin: currentUser.pin
@@ -1386,7 +1545,6 @@ const API_URL = "https://script.google.com/macros/s/AKfycbzwMpYW-VxosKRHzuXUOBxM
     }
 
     function populateAdminFilters() {
-      // أقسام الموظفين (موحد بين الجداول الثلاثة)
       const deptSet = new Set();
       adminEmployees.forEach(e => {
         if (e.Department) deptSet.add(String(e.Department));
@@ -1408,7 +1566,6 @@ const API_URL = "https://script.google.com/macros/s/AKfycbzwMpYW-VxosKRHzuXUOBxM
       fillSelect('admLeaveDeptFilter', 'كل الأقسام');
       fillSelect('admOtDeptFilter', 'كل الأقسام');
 
-      // أشهر الإضافي
       const monthSet = new Set();
       (adminOvertime || []).forEach(rec => {
         const key = getMonthKey(rec.Date);
@@ -1563,6 +1720,227 @@ const API_URL = "https://script.google.com/macros/s/AKfycbzwMpYW-VxosKRHzuXUOBxM
         const tr = document.createElement('tr');
         tr.innerHTML = `<td colspan="7">لا توجد بيانات لهذا الفلتر.</td>`;
         tbody.appendChild(tr);
+      }
+    }
+
+    // ========= واجهة الطلبات العامة =========
+
+    function openEmployeeRequests() {
+      if (!currentUser) return;
+      document.getElementById('requestsOverlay').classList.remove('hidden');
+      document.getElementById('requestsEmployeeView').classList.remove('hidden');
+      document.getElementById('requestsAdminView').classList.add('hidden');
+      loadEmployeeRequests();
+    }
+
+    function openAdminRequests() {
+      if (!currentUser || currentUser.role !== 'Admin') return;
+      document.getElementById('requestsOverlay').classList.remove('hidden');
+      document.getElementById('requestsEmployeeView').classList.add('hidden');
+      document.getElementById('requestsAdminView').classList.remove('hidden');
+      loadAdminRequests();
+    }
+
+    function closeRequestsOverlay() {
+      document.getElementById('requestsOverlay').classList.add('hidden');
+    }
+
+    function setReqAlert(id, message, type) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (!message) {
+        el.classList.add('hidden');
+        return;
+      }
+      el.textContent = message;
+      el.classList.remove('hidden');
+      el.classList.remove('alert-success', 'alert-error');
+      if (type === 'success') el.classList.add('alert-success');
+      else el.classList.add('alert-error');
+    }
+
+    // ---- جزء الموظف ----
+
+    async function loadEmployeeRequests() {
+      if (!currentUser) return;
+      try {
+        setReqAlert('reqEmployeeAlert', '', '');
+        const res = await apiCall('getEmployeeRequests', {
+          employeeId: currentUser.employeeId,
+          pin: currentUser.pin
+        });
+        if (!res.ok) {
+          setReqAlert('reqEmployeeAlert', res.error || 'فشل تحميل الطلبات', 'error');
+          return;
+        }
+        employeeRequests = res.requests || [];
+        renderEmployeeRequestsTable();
+      } catch (err) {
+        setReqAlert('reqEmployeeAlert', err.message || 'خطأ غير متوقع', 'error');
+      }
+    }
+
+    function renderEmployeeRequestsTable() {
+      const tbody = document.querySelector('#employeeReqTable tbody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      (employeeRequests || []).forEach(r => {
+        const statusClass =
+          r.Status === 'Approved'
+            ? 'status-approved'
+            : r.Status === 'Rejected'
+            ? 'status-rejected'
+            : 'status-pending';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${r.RequestID}</td>
+          <td>${r.Type || ''}</td>
+          <td>${r.Subject || ''}</td>
+          <td><span class="status-badge ${statusClass}">${r.Status || ''}</span></td>
+          <td>${formatDate(r.CreatedAt)}</td>
+          <td>${r.AdminReply || ''}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      if (!employeeRequests || employeeRequests.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="6">لا توجد طلبات حتى الآن.</td>`;
+        tbody.appendChild(tr);
+      }
+    }
+
+    async function submitEmployeeRequest() {
+      if (!currentUser) return;
+
+      const type         = document.getElementById('reqType').value;
+      const subject      = document.getElementById('reqSubject').value.trim();
+      const description  = document.getElementById('reqDescription').value.trim();
+      const amount       = document.getElementById('reqAmount').value;
+      const installment  = document.getElementById('reqInstallment').value;
+      const training     = document.getElementById('reqTraining').value.trim();
+      const transferDept = document.getElementById('reqTransferDept').value.trim();
+
+      if (!subject || !description) {
+        setReqAlert('reqEmployeeAlert', 'يرجى كتابة عنوان وشرح للطلب', 'error');
+        return;
+      }
+
+      try {
+        const res = await apiCall('submitRequest', {
+          employeeId: currentUser.employeeId,
+          pin: currentUser.pin,
+          type,
+          subject,
+          description,
+          amount,
+          installment,
+          training,
+          transferDept
+        });
+
+        if (!res.ok) {
+          setReqAlert('reqEmployeeAlert', res.error || 'فشل إرسال الطلب', 'error');
+          return;
+        }
+
+        setReqAlert('reqEmployeeAlert',
+          'تم إرسال الطلب بنجاح (رقم الطلب: ' + res.requestId + ')',
+          'success'
+        );
+
+        document.getElementById('reqSubject').value = '';
+        document.getElementById('reqDescription').value = '';
+        document.getElementById('reqAmount').value = '';
+        document.getElementById('reqInstallment').value = '';
+        document.getElementById('reqTraining').value = '';
+        document.getElementById('reqTransferDept').value = '';
+
+        await loadEmployeeRequests();
+      } catch (err) {
+        setReqAlert('reqEmployeeAlert', err.message || 'خطأ غير متوقع', 'error');
+      }
+    }
+
+    // ---- جزء الإدارة ----
+
+    async function loadAdminRequests() {
+      if (!currentUser || currentUser.role !== 'Admin') return;
+      try {
+        setReqAlert('reqAdminAlert', '', '');
+        const res = await apiCall('adminGetRequests', {
+          adminId: currentUser.employeeId,
+          pin: currentUser.pin
+        });
+        if (!res.ok) {
+          setReqAlert('reqAdminAlert', res.error || 'فشل تحميل طلبات الموظفين', 'error');
+          return;
+        }
+        adminRequests = res.requests || [];
+        renderAdminRequestsTable();
+      } catch (err) {
+        setReqAlert('reqAdminAlert', err.message || 'خطأ غير متوقع', 'error');
+      }
+    }
+
+    function renderAdminRequestsTable() {
+      const tbody = document.querySelector('#adminReqTable tbody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      (adminRequests || []).forEach(r => {
+        const statusClass =
+          r.Status === 'Approved'
+            ? 'status-approved'
+            : r.Status === 'Rejected'
+            ? 'status-rejected'
+            : 'status-pending';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${r.RequestID}</td>
+          <td>${r.EmployeeName || r.EmployeeID}</td>
+          <td>${r.EmployeeDepartment || ''}</td>
+          <td>${r.Type || ''}</td>
+          <td>${r.Subject || ''}</td>
+          <td><span class="status-badge ${statusClass}">${r.Status || ''}</span></td>
+          <td>${formatDate(r.CreatedAt)}</td>
+          <td>
+            <button class="btn btn-sm btn-primary" onclick="adminDecisionRequest(${r.RequestID}, 'Approved')">موافقة</button>
+            <button class="btn btn-sm btn-secondary" onclick="adminDecisionRequest(${r.RequestID}, 'Rejected')">رفض</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      if (!adminRequests || adminRequests.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="8">لا توجد طلبات حتى الآن.</td>`;
+        tbody.appendChild(tr);
+      }
+    }
+
+    async function adminDecisionRequest(requestId, status) {
+      if (!currentUser || currentUser.role !== 'Admin') return;
+      const reply = prompt('اكتب رد الإدارة / الملاحظة (اختياري):', '');
+      try {
+        const res = await apiCall('adminUpdateRequest', {
+          adminId: currentUser.employeeId,
+          pin: currentUser.pin,
+          requestId,
+          status,
+          reply: reply || ''
+        });
+        if (!res.ok) {
+          setReqAlert('reqAdminAlert', res.error || 'فشل تحديث الطلب', 'error');
+          return;
+        }
+        setReqAlert('reqAdminAlert', 'تم تحديث حالة الطلب بنجاح.', 'success');
+        await loadAdminRequests();
+      } catch (err) {
+        setReqAlert('reqAdminAlert', err.message || 'خطأ غير متوقع', 'error');
       }
     }
 
