@@ -54,16 +54,15 @@
       gap: 10px;
     }
 
-.app-logo {
-  width: 42px;        /* زيادة بسيطة تساعد بظهور الشعار كامل */
-  height: 42px;
-  border-radius: 12px; /* ليس دائرة — لأن شعارك مستطيل وليس مربع */
-  object-fit: contain; /* المهم */
-  background: #ffffff;
-  padding: 3px;        /* لإعطاء مساحة داخلية حول الشعار */
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.3);
-}
-
+    .app-logo {
+      width: 42px;        /* زيادة بسيطة تساعد بظهور الشعار كامل */
+      height: 42px;
+      border-radius: 12px; /* ليس دائرة — لأن شعارك مستطيل وليس مربع */
+      object-fit: contain; /* المهم */
+      background: #ffffff;
+      padding: 3px;        /* لإعطاء مساحة داخلية حول الشعار */
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.3);
+    }
 
     .user-info-small {
       font-size: 0.75rem;
@@ -404,16 +403,15 @@
     }
 
     /* 🆕 شعار شاشة تسجيل الدخول */
-.login-logo {
-  width: 55px;
-  height: 55px;
-  border-radius: 12px;
-  object-fit: contain;
-  background: #ffffff;
-  padding: 4px;
-  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.6);
-}
-
+    .login-logo {
+      width: 55px;
+      height: 55px;
+      border-radius: 12px;
+      object-fit: contain;
+      background: #ffffff;
+      padding: 4px;
+      box-shadow: 0 4px 10px rgba(37, 99, 235, 0.6);
+    }
 
     @media (max-width: 600px) {
       .app-header h1 {
@@ -512,6 +510,18 @@
 
         <!-- رصيد الإجازات -->
         <div class="stats-row" id="leaveStatsRow"></div>
+
+        <!-- 🆕 فلتر سنة الإجازات + ملخص السنة -->
+        <div class="stats-row" style="margin-top:8px;">
+          <div class="input-group" style="max-width:200px;">
+            <label>فلتر سنة الإجازات</label>
+            <select id="leaveYearFilter" onchange="updateLeaveYearStats()">
+              <option value="">كل السنوات</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="stats-row" id="leaveYearStats" style="margin-top:4px;"></div>
 
         <!-- أزرار لوحة الموظف -->
         <div style="margin:6px 0 12px; display:flex; gap:6px; flex-wrap:wrap;">
@@ -1022,6 +1032,10 @@
     let adminLeaves = [];
     let adminOvertime = [];
 
+    // 🆕 بيانات إجازات الموظف لكل السنوات + رصيد السنوية
+    let employeeLeavesAll = [];
+    let currentAnnualEntitlement = 0;
+
     // الطلبات العامة
     let employeeRequests = [];
     let adminRequests = [];
@@ -1255,27 +1269,18 @@
           <div class="stat-pill"><span>استثنائية مستهلكة</span><strong>${lb.exceptionalUsed || 0} (مجانية: ${lb.exceptionalFree || 0})</strong></div>
         `;
 
-        const leaveTbody = document.querySelector('#leaveTable tbody');
-        leaveTbody.innerHTML = '';
-        (data.leaves || []).forEach(req => {
-          const statusClass =
-            req.Status === 'Approved'
-              ? 'status-approved'
-              : req.Status === 'Rejected'
-              ? 'status-rejected'
-              : 'status-pending';
+        // 🆕 تخزين إجازات الموظف لكل السنوات + رصيد السنوية
+        employeeLeavesAll = data.leaves || [];
+        currentAnnualEntitlement = lb.annual || 0;
 
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${req.RequestID}</td>
-            <td>${formatDate(req.StartDate)}</td>
-            <td>${formatDate(req.EndDate)}</td>
-            <td>${req.Days}</td>
-            <td>${req.Type || ''}</td>
-            <td><span class="status-badge ${statusClass}">${req.Status}</span></td>
-          `;
-          leaveTbody.appendChild(tr);
-        });
+        // تهيئة فلتر السنة لأول مرة
+        initLeaveYearFilter();
+
+        // عرض الجدول حسب الفلتر (أو كل السنوات)
+        renderEmployeeLeaveTable();
+
+        // حساب ملخص السنة المختارة
+        updateLeaveYearStats();
 
         employeeOTRecords = data.overtime.records || [];
         populateOTMonthFilter();
@@ -1284,6 +1289,172 @@
       } catch (err) {
         setAlert('employeeAlert', err.message || 'خطأ غير متوقع', 'error');
       }
+    }
+
+    // 🆕 تهيئة قائمة السنوات الموجودة في سجلات الإجازات
+    function initLeaveYearFilter() {
+      const select = document.getElementById('leaveYearFilter');
+      if (!select) return;
+
+      const yearsSet = new Set();
+
+      (employeeLeavesAll || []).forEach(req => {
+        if (!req.StartDate) return;
+        const d = new Date(req.StartDate);
+        const y = d.getFullYear();
+        if (!isNaN(y)) yearsSet.add(y);
+      });
+
+      // في حال لا توجد سجلات، على الأقل نضع السنة الحالية
+      if (yearsSet.size === 0) {
+        yearsSet.add(new Date().getFullYear());
+      }
+
+      const years = Array.from(yearsSet).sort((a, b) => a - b);
+
+      let html = `<option value="">كل السنوات</option>`;
+      years.forEach(y => {
+        html += `<option value="${y}">${y}</option>`;
+      });
+
+      select.innerHTML = html;
+
+      // مبدئياً اختر السنة الحالية لو موجودة
+      const currentYear = new Date().getFullYear();
+      if (yearsSet.has(currentYear)) {
+        select.value = String(currentYear);
+      } else {
+        select.value = "";
+      }
+    }
+
+    // 🆕 إعادة رسم جدول الإجازات حسب السنة المختارة
+    function renderEmployeeLeaveTable() {
+      const tbody = document.querySelector('#leaveTable tbody');
+      if (!tbody) return;
+
+      const yearSelect = document.getElementById('leaveYearFilter');
+      const selectedYear = yearSelect && yearSelect.value
+        ? parseInt(yearSelect.value, 10)
+        : null;
+
+      tbody.innerHTML = '';
+
+      let rows = employeeLeavesAll || [];
+
+      if (selectedYear) {
+        rows = rows.filter(req => {
+          if (!req.StartDate) return false;
+          const d = new Date(req.StartDate);
+          const y = d.getFullYear();
+          return !isNaN(y) && y === selectedYear;
+        });
+      }
+
+      rows.forEach(req => {
+        const statusClass =
+          req.Status === 'Approved'
+            ? 'status-approved'
+            : req.Status === 'Rejected'
+            ? 'status-rejected'
+            : 'status-pending';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${req.RequestID}</td>
+          <td>${formatDate(req.StartDate)}</td>
+          <td>${formatDate(req.EndDate)}</td>
+          <td>${req.Days}</td>
+          <td>${req.Type || ''}</td>
+          <td><span class="status-badge ${statusClass}">${req.Status}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      if (rows.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="6">لا توجد طلبات إجازة لهذه السنة.</td>`;
+        tbody.appendChild(tr);
+      }
+    }
+
+    // 🆕 حساب ملخص إجازات السنة (مستخدم + متبقي)
+    function updateLeaveYearStats() {
+      const statsDiv = document.getElementById('leaveYearStats');
+      const yearSelect = document.getElementById('leaveYearFilter');
+      if (!statsDiv || !yearSelect) return;
+
+      const selectedYear = yearSelect.value
+        ? parseInt(yearSelect.value, 10)
+        : null;
+
+      let filtered = employeeLeavesAll || [];
+
+      if (selectedYear) {
+        filtered = filtered.filter(req => {
+          if (!req.StartDate) return false;
+          const d = new Date(req.StartDate);
+          const y = d.getFullYear();
+          return !isNaN(y) && y === selectedYear;
+        });
+      }
+
+      // نحسب فقط الإجازات "المعتمدة"
+      let totalApprovedDays = 0;
+      let annualUsed = 0;
+      let sickUsed = 0;
+      let exceptionalUsed = 0;
+
+      filtered.forEach(req => {
+        if (req.Status !== 'Approved') return;
+        const days = Number(req.Days || 0);
+        totalApprovedDays += days;
+
+        if (req.Type === 'Annual') {
+          annualUsed += days;
+        } else if (req.Type === 'Sick') {
+          sickUsed += days;
+        } else if (req.Type === 'Exceptional') {
+          exceptionalUsed += days;
+        }
+      });
+
+      // المتبقي من السنوية في هذه السنة (تقريبي على أساس نفس رصيد lb.annual)
+      const entitlement = Number(currentAnnualEntitlement || 0);
+      let annualRemaining = entitlement - annualUsed;
+      if (annualRemaining < 0) annualRemaining = 0;
+
+      const yearLabel = selectedYear ? selectedYear : 'كل السنوات';
+
+      statsDiv.innerHTML = `
+        <div class="stat-pill">
+          <span>السنة المختارة</span>
+          <strong>${yearLabel}</strong>
+        </div>
+        <div class="stat-pill">
+          <span>أيام الإجازات المعتمدة</span>
+          <strong>${totalApprovedDays}</strong>
+        </div>
+        <div class="stat-pill">
+          <span>سنوية مستخدمة</span>
+          <strong>${annualUsed} / ${entitlement}</strong>
+        </div>
+        <div class="stat-pill">
+          <span>سنوية متبقية (تقريبي)</span>
+          <strong>${annualRemaining}</strong>
+        </div>
+        <div class="stat-pill">
+          <span>مرضية معتمدة</span>
+          <strong>${sickUsed}</strong>
+        </div>
+        <div class="stat-pill">
+          <span>استثنائية معتمدة</span>
+          <strong>${exceptionalUsed}</strong>
+        </div>
+      `;
+
+      // إعادة رسم الجدول مع نفس الفلتر
+      renderEmployeeLeaveTable();
     }
 
     async function submitLeave() {
