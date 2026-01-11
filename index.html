@@ -2232,9 +2232,38 @@
       }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      showView(false);
-    });
+document.addEventListener('DOMContentLoaded', () => {
+  // نقرأ باراميترات الرابط ?empCode=...&name=...&role=...
+  const params = new URLSearchParams(window.location.search);
+
+  const empCode = params.get('empCode');   // يأتي من واجهة المهام
+  const name    = params.get('name');
+  const role    = params.get('role');
+
+  // تعبئة رقم الموظف في حقل تسجيل الدخول إن وجد
+  const empInput = document.getElementById('loginEmployeeId');
+  const pinInput = document.getElementById('loginPin');
+
+  if (empCode && empInput) {
+    empInput.value = empCode;
+  }
+
+  // تركيز المؤشر مباشرة في حقل الـ PIN ليسهل على الموظف
+  if (pinInput) {
+    pinInput.focus();
+  }
+
+  // يمكن لاحقاً إن أحببت أن تعرض الاسم في مكان ما (Label أو نص صغير)
+  // مثال (اختياري): لو أضفت span id="loginEmpNameLabel" تحت العنوان
+  const nameLabel = document.getElementById('loginEmpNameLabel');
+  if (name && nameLabel) {
+    nameLabel.textContent = name + ' (' + (role || '') + ')';
+  }
+
+  // إظهار شاشة تسجيل الدخول
+  showView(false);
+});
+
   </script>
 </body>
 </html>
